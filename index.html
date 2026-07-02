@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Refuge Homes — Investor CRM</title>
+<title>Refuge Holdings CRM</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap');
@@ -23,6 +23,20 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--warm-white);color
 
 /* ── HEADER ── */
 .hdr{background:var(--teal-dark);padding:0 20px;display:flex;align-items:center;gap:12px;height:54px;flex-shrink:0;z-index:50;position:relative;}
+
+/* ── LOGIN SCREEN ── */
+#login-screen{position:fixed;inset:0;background:var(--teal-dark);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;}
+#login-screen.hidden{display:none;}
+.login-box{background:#fff;border-radius:var(--rlg);padding:36px;width:400px;max-width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.login-logo{font-family:'DM Serif Display',Georgia,serif;font-size:22px;color:var(--teal-dark);margin-bottom:4px;}
+.login-logo span{color:var(--orange);}
+.login-sub{font-size:12px;color:var(--ink-light);letter-spacing:1px;text-transform:uppercase;margin-bottom:28px;}
+.login-divider{display:flex;align-items:center;gap:10px;margin:16px 0;font-size:12px;color:var(--ink-light);}
+.login-divider::before,.login-divider::after{content:'';flex:1;height:1px;background:var(--rule);}
+.google-btn{width:100%;padding:10px;border:1px solid var(--rule2);border-radius:var(--r);background:#fff;display:flex;align-items:center;justify-content:center;gap:10px;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s;font-family:'Inter',sans-serif;}
+.google-btn:hover{background:var(--teal-light);}
+.login-error{background:var(--rd-lt);color:var(--rd);border:1px solid #d88;border-radius:var(--r);padding:8px 12px;font-size:12px;margin-bottom:12px;display:none;}
+
 .hdr-logo{font-family:'DM Serif Display',Georgia,serif;font-size:17px;color:#fff;letter-spacing:-.2px;}
 .hdr-logo span{color:var(--teal-accent);}
 .hdr-sub{font-size:10px;color:var(--teal-accent);letter-spacing:1.5px;text-transform:uppercase;margin-top:1px;}
@@ -346,7 +360,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--warm-white);color
 <!-- HEADER -->
 <div class="hdr">
   <div>
-    <div class="hdr-logo">Refuge Homes <span>CRM</span></div>
+    <div class="hdr-logo">Refuge Holdings <span>CRM</span></div>
     <div class="hdr-sub">Investor Relations</div>
   </div>
   <div class="hdr-r">
@@ -423,6 +437,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--warm-white);color
         <option value="Refuge">Refuge Holdings</option>
         <option value="TPW">TPW Lending</option>
       </select>
+      <div id="db-view-toggle" style="display:none;background:var(--teal-light);border-radius:var(--r);padding:3px;display:flex;gap:2px;">
+        <button id="db-toggle-company" class="btn btn-xs" style="background:var(--teal-dark);color:#fff;border:none;" onclick="setDashView('company')">🏢 Company</button>
+        <button id="db-toggle-personal" class="btn btn-xs" style="background:transparent;border:none;color:var(--teal-dark);" onclick="setDashView('personal')">👤 My Pipeline</button>
+      </div>
       <button class="btn btn-sm" onclick="showView('reports')">Full Reports →</button>
     </div>
   </div>
@@ -763,8 +781,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--warm-white);color
       <div style="display:flex;flex-direction:column;gap:8px;">
         <button class="btn btn-sm" onclick="exportCSV()">⬇ Export Contacts CSV</button>
         <button class="btn btn-sm" onclick="exportJSON()">⬇ Full Backup (JSON)</button>
+        <button class="btn btn-sm" onclick="openBackupModal()">🕐 Backup & Restore History</button>
         <button class="btn btn-sm" onclick="openModal('import-modal')">⬆ Import Contacts</button>
-        <button class="btn btn-sm btn-danger" onclick="confirmReset()">⚠ Reset All Data</button>
+        <button class="btn btn-sm" onclick="logout()" style="margin-top:8px;">🔒 Sign Out</button>
       </div>
     </div>
   </div>
@@ -801,6 +820,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--warm-white);color
     <div class="fg"><label>LinkedIn URL</label><input id="nc-linkedin" placeholder="https://linkedin.com/in/..."></div>
     <div class="fg"><label>Professional Background</label><input id="nc-profession" placeholder="e.g. Physician, Business Owner"></div>
   </div>
+  <div class="fg"><label>Company / Organization</label><input id="nc-company" placeholder="e.g. Smith Family LLC, ABC Holdings — links contacts from the same company"></div>
   <div class="section-divider">Classification</div>
   <div class="fg-row">
     <div class="fg"><label>Assigned Fundraiser</label>
@@ -1193,14 +1213,51 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--warm-white);color
 </div>
 </div>
 
+<!-- BACKUP & RESTORE MODAL -->
+<div class="modal-overlay" id="backup-modal">
+<div class="modal" style="width:440px;">
+  <div class="modal-hdr">
+    <div class="modal-title">Backup & Restore</div>
+    <button class="modal-close" onclick="closeModal('backup-modal')">✕</button>
+  </div>
+  <div style="font-size:13px;color:var(--ink-light);margin-bottom:14px;">Backups are taken automatically once per day. Click Restore to roll back to any saved snapshot. <strong>This replaces all current data.</strong></div>
+  <div id="backup-list"><div style="font-size:13px;color:var(--ink-light);">Loading backups…</div></div>
+  <div class="m-actions">
+    <button class="btn btn-sm" onclick="exportJSON()">⬇ Download Full Backup Now</button>
+    <button class="btn" onclick="closeModal('backup-modal')">Close</button>
+  </div>
+</div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Refuge Holdings <span>CRM</span></div>
+    <div class="login-sub">Investor Relations Platform</div>
+    <div id="login-error" class="login-error"></div>
+    <div class="fg"><label>Email</label><input id="login-email" type="email" placeholder="you@refuge-homes.com" style="font-size:14px;padding:10px 12px;"></div>
+    <div class="fg"><label>Password</label><input id="login-password" type="password" placeholder="Password" style="font-size:14px;padding:10px 12px;" onkeydown="if(event.key==='Enter')loginWithEmail()"></div>
+    <button class="btn btn-primary" style="width:100%;padding:11px;font-size:14px;justify-content:center;margin-top:4px;" onclick="loginWithEmail()">Sign In</button>
+    <div class="login-divider">or</div>
+    <button class="google-btn" onclick="loginWithGoogle()">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/><path fill="#34A353" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/><path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/><path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/></svg>
+      Sign in with Google
+    </button>
+    <div style="margin-top:16px;text-align:center;font-size:11px;color:var(--ink-light);">Authorized team members only. Contact Dana to request access.</div>
+  </div>
+</div>
+
 <div id="sync-toast"><span class="spin">⟳</span> <span id="sync-msg">Syncing…</span></div>
 </body>
-</html>
 <script>
-// STATE
-// ── SUPABASE CONFIG ──────────────────────────────────────────────────
-const SUPABASE_URL = 'https://uivltttwigqejmqqfxuj.supabase.co/rest/v1';
+// ═══════════════════════════════════════════════════════════
+// SUPABASE CONFIG
+// ═══════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://uivltttwigqejmqqfxuj.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdmx0dHR3aWdxZWptcXFmeHVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MDMzMzksImV4cCI6MjA5ODM3OTMzOX0.kRL0VJHR4sP1qLiOwIuYR6fjmrQ4QrETDjwPtMWr4iA';
+const REST = SUPABASE_URL + '/rest/v1';
+const AUTH = SUPABASE_URL + '/auth/v1';
+
 const SB_HEADERS = {
   'apikey': SUPABASE_KEY,
   'Authorization': 'Bearer ' + SUPABASE_KEY,
@@ -1208,104 +1265,132 @@ const SB_HEADERS = {
   'Prefer': 'resolution=merge-duplicates'
 };
 
-async function sbUpsert(table, records) {
-  if (!records || records.length === 0) return;
-  const rows = records.map(r => ({ id: r.id, data: r, updated_at: new Date().toISOString() }));
-  const res = await fetch(SUPABASE_URL + '/' + table, {
-    method: 'POST', headers: SB_HEADERS, body: JSON.stringify(rows)
-  });
-  if (!res.ok) console.error('Supabase upsert error on', table, await res.text());
+function authHeaders(token) {
+  return {
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + (token || SUPABASE_KEY),
+    'Content-Type': 'application/json',
+    'Prefer': 'resolution=merge-duplicates'
+  };
 }
 
-async function sbLoad(table) {
-  const res = await fetch(SUPABASE_URL + '/' + table + '?select=data&order=updated_at.asc', {
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
-  });
-  if (!res.ok) return [];
-  const rows = await res.json();
-  return rows.map(r => r.data);
-}
+// ═══════════════════════════════════════════════════════════
+// AUTH STATE
+// ═══════════════════════════════════════════════════════════
+let _authToken = null;
+let _authUser = null;
 
-async function sbDelete(table, id) {
-  await fetch(SUPABASE_URL + '/' + table + '?id=eq.' + id, {
-    method: 'DELETE', headers: SB_HEADERS
-  });
-}
-
-let _saveTimer = null;
-function saveState() {
-  // Always write to localStorage immediately for fast local reads
+async function loginWithEmail() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+  if (!email || !password) { showLoginError('Please enter your email and password.'); return; }
   try {
-    localStorage.setItem('refuge_crm_v1', JSON.stringify({
-      contacts: S.contacts, investments: S.investments, activities: S.activities,
-      tasks: S.tasks, templates: S.templates, goals: S.goals,
-      settings: S.settings, currentUser: S.currentUser
-    }));
+    const res = await fetch(AUTH + '/token?grant_type=password', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (data.error || !data.access_token) { showLoginError(data.error_description || data.msg || 'Invalid email or password.'); return; }
+    _authToken = data.access_token;
+    _authUser = data.user;
+    localStorage.setItem('refuge_auth_token', _authToken);
+    localStorage.setItem('refuge_auth_user', JSON.stringify(_authUser));
+    await onLoginSuccess();
+  } catch(e) { showLoginError('Connection error. Please try again.'); }
+}
+
+async function loginWithGoogle() {
+  // Redirect to Google OAuth via Supabase
+  const redirectTo = window.location.href.split('?')[0];
+  window.location.href = SUPABASE_URL + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(redirectTo);
+}
+
+async function checkAuthCallback() {
+  // Handle OAuth redirect — Supabase puts the token in the URL hash
+  const hash = window.location.hash;
+  if (hash && hash.includes('access_token')) {
+    const params = new URLSearchParams(hash.replace('#', ''));
+    const token = params.get('access_token');
+    if (token) {
+      _authToken = token;
+      localStorage.setItem('refuge_auth_token', token);
+      // Get user info
+      try {
+        const res = await fetch(AUTH + '/user', {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token }
+        });
+        _authUser = await res.json();
+        localStorage.setItem('refuge_auth_user', JSON.stringify(_authUser));
+      } catch(e) {}
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return true;
+    }
+  }
+  return false;
+}
+
+async function tryRestoreSession() {
+  const token = localStorage.getItem('refuge_auth_token');
+  const userStr = localStorage.getItem('refuge_auth_user');
+  if (!token || !userStr) return false;
+  // Verify token is still valid
+  try {
+    const res = await fetch(AUTH + '/user', {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token }
+    });
+    if (res.ok) {
+      _authToken = token;
+      _authUser = JSON.parse(userStr);
+      return true;
+    }
   } catch(e) {}
-  // Debounce Supabase writes — batch rapid changes into one network call
-  clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(syncToSupabase, 1500);
+  localStorage.removeItem('refuge_auth_token');
+  localStorage.removeItem('refuge_auth_user');
+  return false;
 }
 
-async function syncToSupabase() {
-  setSyncStatus('syncing');
-  try {
-    await Promise.all([
-      sbUpsert('contacts', S.contacts),
-      sbUpsert('investments', S.investments),
-      sbUpsert('activities', S.activities),
-      sbUpsert('tasks', S.tasks),
-      sbUpsert('templates', S.templates),
-      sbUpsert('app_settings', [{ id: 'goals', data: S.goals }, { id: 'settings', data: S.settings }]),
-    ]);
-    setSyncStatus('ok');
-  } catch(e) {
-    console.error('Supabase sync error:', e);
-    setSyncStatus('error');
-  }
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg; el.style.display = 'block';
 }
 
-async function loadState() {
-  // Try Supabase first; fall back to localStorage if offline
-  try {
-    setSyncStatus('syncing');
-    const [contacts, investments, activities, tasks, templates, appSettings] = await Promise.all([
-      sbLoad('contacts'), sbLoad('investments'), sbLoad('activities'),
-      sbLoad('tasks'), sbLoad('templates'), sbLoad('app_settings'),
-    ]);
-    S.contacts = contacts;
-    S.investments = investments;
-    S.activities = activities;
-    S.tasks = tasks;
-    S.templates = templates.length > 0 ? templates : defaultTemplates();
-    const goals = appSettings.find(r => r && r.id === 'goals');
-    const settings = appSettings.find(r => r && r.id === 'settings');
-    if (goals) S.goals = goals.data || S.goals;
-    if (settings) S.settings = settings.data || S.settings;
-    // Also cache to localStorage
-    try { localStorage.setItem('refuge_crm_v1', JSON.stringify(S)); } catch(e) {}
-    setSyncStatus('ok');
-  } catch(e) {
-    console.warn('Supabase unavailable, loading from localStorage:', e);
-    setSyncStatus('error');
-    try {
-      const raw = localStorage.getItem('refuge_crm_v1');
-      if (raw) { const d = JSON.parse(raw); Object.assign(S, d); }
-    } catch(e2) {}
-    if (!S.templates || S.templates.length === 0) S.templates = defaultTemplates();
-  }
+function logout() {
+  _authToken = null; _authUser = null;
+  localStorage.removeItem('refuge_auth_token');
+  localStorage.removeItem('refuge_auth_user');
+  localStorage.removeItem('refuge_crm_v1');
+  document.getElementById('login-screen').classList.remove('hidden');
 }
 
-function setSyncStatus(status) {
-  const dot = document.getElementById('sync-dot');
-  const txt = document.getElementById('sync-txt');
-  if (!dot || !txt) return;
-  if (status === 'syncing') { dot.style.background = '#E8401C'; txt.textContent = 'Syncing…'; }
-  else if (status === 'ok')  { dot.style.background = '#5DCAA5'; txt.textContent = 'Synced'; }
-  else                        { dot.style.background = '#854F0B'; txt.textContent = 'Sync error'; }
+async function onLoginSuccess() {
+  document.getElementById('login-screen').classList.add('hidden');
+  // Match email to team user record
+  const email = _authUser && (_authUser.email || '');
+  const matched = USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
+  if (matched) S.currentUser = matched.id;
+  await loadState();
+  populateUserSelects();
+  updateHeaderUser();
+  renderDashboard();
+  updateBadges();
+  document.getElementById('goals-modal').addEventListener('click', e => { if (e.target.closest('.modal')) loadGoalsModal(); });
+  _calYear = new Date().getFullYear(); _calMonth = new Date().getMonth();
 }
-// ─────────────────────────────────────────────────────────────────────
 
+function updateHeaderUser() {
+  const u = userById(S.currentUser);
+  document.getElementById('hdr-av-initials').textContent = u.initials;
+  document.getElementById('hdr-av-initials').style.background = u.color;
+  document.getElementById('hdr-uname').textContent = u.name;
+  document.getElementById('hdr-role').textContent = u.role;
+}
+</script><script>
+// ═══════════════════════════════════════════════════════════
+// STATE & CONSTANTS
+// ═══════════════════════════════════════════════════════════
 const USERS = [
   {id:'dana',name:'Dana LaBerge',initials:'DL',role:'owner',email:'dana@refuge-homes.com',color:'#2d5461'},
   {id:'blake',name:'Blake Anderson',initials:'BA',role:'owner',email:'blake@refuge-homes.com',color:'#E8401C'},
@@ -1328,16 +1413,23 @@ const OFFERING_BY_ENTITY = {
   Refuge:['Impact Fund','Profit Share','Flat Interest'],
   TPW:['TPW Lending'],
 };
+
 let S = {
   contacts:[],investments:[],activities:[],tasks:[],templates:[],
   goals:{capital:500000,investors:5,meetings:10,touchpoints:30},
   settings:{radarHot:14,radarWarm:7,stallDays:14},
-  currentUser:'dana',_viewingContact:null,_viewingInvestment:null,_pendingAdvance:null,_importRows:[],
+  currentUser:'dana',
+  dashView:'company', // 'company' or 'personal'
+  _viewingContact:null,_viewingInvestment:null,_importRows:[],
 };
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
 function today(){return new Date().toISOString().split('T')[0];}
 function now(){return new Date().toISOString();}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
-function fmt$(n){if(!n&&n!==0)return'—';return'$'+Number(n).toLocaleString();}
+function fmt$(n){if(!n&&n!==0)return'—';return'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtDate(d){if(!d)return'—';const dt=new Date(d+'T12:00:00');return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
 function daysDiff(d1,d2){return Math.round((new Date(d2)-new Date(d1))/(1000*60*60*24));}
 function daysAgo(d){if(!d)return 999;return daysDiff(d,today());}
@@ -1345,12 +1437,177 @@ function daysUntil(d){if(!d)return 999;return daysDiff(today(),d);}
 function userById(id){return USERS.find(u=>u.id===id)||USERS[0];}
 function offeringById(id){return OFFERINGS.find(o=>o.id===id)||{label:id,color:'#888',entity:'?'};}
 function currentUser(){return userById(S.currentUser);}
-function isOwner(){return currentUser().role==='owner';}
+function isOwner(){return['owner','admin'].includes(currentUser().role);}
+function isFundraiser(){return currentUser().role==='fundraiser';}
 
-// STORAGE
-// saveState and loadState defined above with Supabase integration
+// ── VISIBILITY: who can see which contacts ──────────────────
+function canViewContact(c){
+  if(isOwner())return true; // owners and admin see all
+  return c.assignee===S.currentUser; // fundraisers only see their own
+}
+function visibleContacts(){return S.contacts.filter(canViewContact);}
+function visibleInvestments(){
+  const vIds=new Set(visibleContacts().map(c=>c.id));
+  return S.investments.filter(i=>vIds.has(i.contactId));
+}
 
-// NAV
+// ── DATA VALIDATION ─────────────────────────────────────────
+function fmtPhone(v){
+  const d=v.replace(/\D/g,'');
+  if(d.length===0)return'';
+  if(d.length<=3)return'('+d;
+  if(d.length<=6)return'('+d.slice(0,3)+') '+d.slice(3);
+  return'('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6,10);
+}
+function fmtDollar(v){
+  const n=parseFloat(v.replace(/[^0-9.]/g,''));
+  if(isNaN(n))return'';
+  return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function validEmail(e){return/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);}
+function validateContactForm(){
+  const errs=[];
+  const first=document.getElementById('nc-first').value.trim();
+  const last=document.getElementById('nc-last').value.trim();
+  const email=document.getElementById('nc-email').value.trim();
+  const phone=document.getElementById('nc-phone').value.trim();
+  if(!first)errs.push('First name is required');
+  if(!last)errs.push('Last name is required');
+  if(email&&!validEmail(email))errs.push('Email address is not valid');
+  if(phone&&phone.replace(/\D/g,'').length>0&&phone.replace(/\D/g,'').length<10)errs.push('Phone number must be 10 digits');
+  return errs;
+}
+
+// Auto-format phone as user types
+document.addEventListener('input',e=>{
+  if(e.target.id==='nc-phone'||e.target.id==='cde-phone'){
+    const pos=e.target.selectionStart;
+    e.target.value=fmtPhone(e.target.value);
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+// SUPABASE CRUD
+// ═══════════════════════════════════════════════════════════
+async function sbUpsert(table,records){
+  if(!records||records.length===0)return;
+  const hdrs=authHeaders(_authToken);
+  const rows=records.map(r=>({id:r.id,data:r,updated_at:now()}));
+  const res=await fetch(REST+'/'+table,{method:'POST',headers:hdrs,body:JSON.stringify(rows)});
+  if(!res.ok)console.error('Supabase upsert error on',table,await res.text());
+}
+async function sbLoad(table){
+  const hdrs={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+(_authToken||SUPABASE_KEY)};
+  const res=await fetch(REST+'/'+table+'?select=data&order=updated_at.asc',{headers:hdrs});
+  if(!res.ok)return[];
+  const rows=await res.json();
+  return rows.map(r=>r.data);
+}
+async function sbDeleteRow(table,id){
+  const hdrs=authHeaders(_authToken);
+  await fetch(REST+'/'+table+'?id=eq.'+id,{method:'DELETE',headers:hdrs});
+}
+
+// ── SAVE / LOAD ─────────────────────────────────────────────
+let _saveTimer=null;
+function saveState(){
+  try{localStorage.setItem('refuge_crm_v1',JSON.stringify({contacts:S.contacts,investments:S.investments,activities:S.activities,tasks:S.tasks,templates:S.templates,goals:S.goals,settings:S.settings,currentUser:S.currentUser,dashView:S.dashView}));}catch(e){}
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(syncToSupabase,1500);
+}
+async function syncToSupabase(){
+  setSyncStatus('syncing');
+  try{
+    await Promise.all([
+      sbUpsert('contacts',S.contacts),
+      sbUpsert('investments',S.investments),
+      sbUpsert('activities',S.activities),
+      sbUpsert('tasks',S.tasks),
+      sbUpsert('templates',S.templates),
+      sbUpsert('app_settings',[{id:'goals',data:S.goals},{id:'settings',data:S.settings}]),
+    ]);
+    setSyncStatus('ok');
+    // Schedule daily backup
+    maybeTakeBackup();
+  }catch(e){console.error('Sync error:',e);setSyncStatus('error');}
+}
+async function loadState(){
+  try{
+    setSyncStatus('syncing');
+    const [contacts,investments,activities,tasks,templates,appSettings]=await Promise.all([
+      sbLoad('contacts'),sbLoad('investments'),sbLoad('activities'),
+      sbLoad('tasks'),sbLoad('templates'),sbLoad('app_settings'),
+    ]);
+    S.contacts=contacts;S.investments=investments;S.activities=activities;
+    S.tasks=tasks;S.templates=templates.length>0?templates:defaultTemplates();
+    const goals=appSettings.find(r=>r&&r.id==='goals');
+    const settings=appSettings.find(r=>r&&r.id==='settings');
+    if(goals)S.goals=goals.data||S.goals;
+    if(settings)S.settings=settings.data||S.settings;
+    try{localStorage.setItem('refuge_crm_v1',JSON.stringify(S));}catch(e){}
+    setSyncStatus('ok');
+  }catch(e){
+    console.warn('Supabase unavailable, loading from localStorage:',e);
+    setSyncStatus('error');
+    try{const raw=localStorage.getItem('refuge_crm_v1');if(raw){const d=JSON.parse(raw);Object.assign(S,d);}}catch(e2){}
+    if(!S.templates||S.templates.length===0)S.templates=defaultTemplates();
+  }
+}
+function setSyncStatus(status){
+  const dot=document.getElementById('sync-dot');const txt=document.getElementById('sync-txt');if(!dot||!txt)return;
+  if(status==='syncing'){dot.style.background='#E8401C';txt.textContent='Syncing…';}
+  else if(status==='ok'){dot.style.background='#5DCAA5';txt.textContent='Synced';}
+  else{dot.style.background='#854F0B';txt.textContent='Sync error';}
+}
+
+// ── AUTO DAILY BACKUP ───────────────────────────────────────
+async function maybeTakeBackup(){
+  const lastKey='refuge_last_backup';
+  const last=localStorage.getItem(lastKey)||'';
+  const todayStr=today();
+  if(last===todayStr)return; // already backed up today
+  try{
+    const snapshot={id:todayStr,data:{contacts:S.contacts,investments:S.investments,activities:S.activities,tasks:S.tasks,date:todayStr},updated_at:now()};
+    const hdrs=authHeaders(_authToken);
+    await fetch(REST+'/backups',{method:'POST',headers:hdrs,body:JSON.stringify(snapshot)});
+    localStorage.setItem(lastKey,todayStr);
+    console.log('Daily backup taken:',todayStr);
+  }catch(e){console.warn('Backup failed:',e);}
+}
+async function loadBackupDates(){
+  try{
+    const hdrs={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+(_authToken||SUPABASE_KEY)};
+    const res=await fetch(REST+'/backups?select=id,updated_at&order=updated_at.desc&limit=30',{headers:hdrs});
+    if(!res.ok)return[];
+    return await res.json();
+  }catch(e){return[];}
+}
+async function restoreFromBackup(dateId){
+  if(!confirm('Restore data from '+dateId+'? Current data will be replaced.'))return;
+  try{
+    const hdrs={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+(_authToken||SUPABASE_KEY)};
+    const res=await fetch(REST+'/backups?id=eq.'+dateId+'&select=data',{headers:hdrs});
+    const rows=await res.json();
+    if(!rows.length){alert('Backup not found.');return;}
+    const snap=rows[0].data;
+    S.contacts=snap.contacts||[];S.investments=snap.investments||[];
+    S.activities=snap.activities||[];S.tasks=snap.tasks||[];
+    await syncToSupabase();
+    renderDashboard();renderContacts();updateBadges();
+    showToast('Restored from backup: '+dateId);
+    closeModal('backup-modal');
+  }catch(e){alert('Restore failed: '+e.message);}
+}
+async function openBackupModal(){
+  openModal('backup-modal');
+  const dates=await loadBackupDates();
+  const el=document.getElementById('backup-list');
+  el.innerHTML=dates.length?dates.map(b=>'<div class="dr" style="padding:8px 0;"><span>'+b.id+'</span><button class="btn btn-xs btn-primary" onclick="restoreFromBackup(\''+b.id+'\')">Restore</button></div>').join(''):'<div style="font-size:13px;color:var(--ink-light);">No backups found yet. Backups are taken automatically once per day when the CRM is open.</div>';
+}
+</script><script>
+// ═══════════════════════════════════════════════════════════
+// NAV & MODALS
+// ═══════════════════════════════════════════════════════════
 function showView(id){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1369,19 +1626,21 @@ function switchTab(group,tab){
   parent.querySelectorAll('.tab-btn').forEach(b=>{if(b.getAttribute('onclick')&&b.getAttribute('onclick').includes("'"+tab+"'"))b.classList.add('active');});
   const tabRenders={'reports-overview':renderReportsOverview,'reports-fundraiser':renderReportsFundraiser,'reports-pipeline-velocity':renderReportsVelocity,'reports-yoy':renderReportsYOY,'reports-conversion':renderReportsConversion};
   if(tabRenders[group+'-'+tab])tabRenders[group+'-'+tab]();
-  if(group==='cd'){renderContactDetail(S._viewingContact);}
+  if(group==='cd')renderContactDetail(S._viewingContact);
 }
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.addEventListener('click',e=>{
   if(e.target.classList.contains('modal-overlay'))e.target.classList.remove('open');
-  if(!e.target.closest('#notif-badge')&&!e.target.closest('#notif-panel')){document.getElementById('notif-panel').classList.remove('open');}
+  if(!e.target.closest('#notif-badge')&&!e.target.closest('#notif-panel'))document.getElementById('notif-panel').classList.remove('open');
 });
 
+// ═══════════════════════════════════════════════════════════
 // POPULATE SELECTS
+// ═══════════════════════════════════════════════════════════
 function populateUserSelects(){
   const fundraisers=USERS.filter(u=>u.role!=='admin');
-  ['nc-assignee','task-assignee-inp','pipe-fundraiser'].forEach(id=>{
+  ['nc-assignee','task-assignee-inp','pipe-fundraiser','contact-assignee'].forEach(id=>{
     const el=document.getElementById(id);if(!el)return;
     fundraisers.forEach(u=>{if(!el.querySelector('option[value="'+u.id+'"]')){const o=document.createElement('option');o.value=u.id;o.textContent=u.name;el.appendChild(o);}});
   });
@@ -1389,32 +1648,79 @@ function populateUserSelects(){
     const el=document.getElementById(id);if(!el)return;
     USERS.forEach(u=>{if(!el.querySelector('option[value="'+u.id+'"]')){const o=document.createElement('option');o.value=u.id;o.textContent=u.name;el.appendChild(o);}});
   });
-  ['contact-assignee'].forEach(id=>{
-    const el=document.getElementById(id);if(!el)return;
-    fundraisers.forEach(u=>{if(!el.querySelector('option[value="'+u.id+'"]')){const o=document.createElement('option');o.value=u.id;o.textContent=u.name;el.appendChild(o);}});
-  });
   ['inv-contact-select','task-contact-inp'].forEach(id=>{
     const el=document.getElementById(id);if(!el)return;
     const cur=el.value;el.innerHTML='<option value="">Select investor...</option>';
-    S.contacts.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.first+' '+c.last;el.appendChild(o);});
+    visibleContacts().forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.first+' '+c.last;el.appendChild(o);});
     if(cur)el.value=cur;
   });
   const actEl=document.getElementById('act-contact');
-  if(actEl){const cur=actEl.value;actEl.innerHTML='';S.contacts.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.first+' '+c.last;actEl.appendChild(o);});if(cur)actEl.value=cur;}
+  if(actEl){const cur=actEl.value;actEl.innerHTML='';visibleContacts().forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.first+' '+c.last;actEl.appendChild(o);});if(cur)actEl.value=cur;}
 }
-</script><script>
+
+// ═══════════════════════════════════════════════════════════
 // CONTACT CRUD
+// ═══════════════════════════════════════════════════════════
 function saveContact(){
+  const errs=validateContactForm();
+  if(errs.length){alert(errs.join('\n'));return;}
   const first=document.getElementById('nc-first').value.trim();
   const last=document.getElementById('nc-last').value.trim();
-  if(!first||!last){alert('First and last name required.');return;}
-  const c={id:uid(),first,last,email:document.getElementById('nc-email').value.trim(),phone:document.getElementById('nc-phone').value.trim(),address:document.getElementById('nc-address').value.trim(),spouse:document.getElementById('nc-spouse').value.trim(),spouseEmail:document.getElementById('nc-spouse-email').value.trim(),linkedin:document.getElementById('nc-linkedin').value.trim(),profession:document.getElementById('nc-profession').value.trim(),assignee:document.getElementById('nc-assignee').value,entityType:document.getElementById('nc-entity-type').value,leadSource:document.getElementById('nc-lead-source').value,referredBy:document.getElementById('nc-referred-by').value.trim(),commPref:document.getElementById('nc-comm-pref').value,contactTime:document.getElementById('nc-contact-time').value.trim(),warmth:parseInt(document.getElementById('nc-warmth').value)||3,estCapital:parseFloat(document.getElementById('nc-est-capital').value)||0,accredited:document.getElementById('nc-accredited').value,accredExpiry:document.getElementById('nc-accred-expiry').value,kyc:document.getElementById('nc-kyc').value,dnc:document.getElementById('nc-dnc').value==='yes',language:document.getElementById('nc-language').value||'English',finraNotes:document.getElementById('nc-finra-notes').value.trim(),notes:document.getElementById('nc-notes').value.trim(),addedDate:today(),lastContact:today(),referralsGiven:0,coInvestors:[],anniversaryDate:null};
+  // Check for duplicate
+  const dup=S.contacts.find(c=>c.first.toLowerCase()===first.toLowerCase()&&c.last.toLowerCase()===last.toLowerCase());
+  if(dup){document.getElementById('dup-warning').style.display='flex';document.getElementById('dup-name').textContent=dup.first+' '+dup.last+' (added '+fmtDate(dup.addedDate)+')';}
+  const phone=fmtPhone(document.getElementById('nc-phone').value);
+  const estCap=document.getElementById('nc-est-capital').value.replace(/[^0-9.]/g,'');
+  const c={
+    id:uid(),first,last,
+    email:document.getElementById('nc-email').value.trim(),
+    phone,
+    address:document.getElementById('nc-address').value.trim(),
+    spouse:document.getElementById('nc-spouse').value.trim(),
+    spouseEmail:document.getElementById('nc-spouse-email').value.trim(),
+    linkedin:document.getElementById('nc-linkedin').value.trim(),
+    profession:document.getElementById('nc-profession').value.trim(),
+    company:document.getElementById('nc-company').value.trim(),
+    assignee:document.getElementById('nc-assignee').value||S.currentUser,
+    entityType:document.getElementById('nc-entity-type').value,
+    leadSource:document.getElementById('nc-lead-source').value,
+    referredBy:document.getElementById('nc-referred-by').value.trim(),
+    commPref:document.getElementById('nc-comm-pref').value,
+    contactTime:document.getElementById('nc-contact-time').value.trim(),
+    warmth:parseInt(document.getElementById('nc-warmth').value)||3,
+    estCapital:parseFloat(estCap)||0,
+    accredited:document.getElementById('nc-accredited').value,
+    accredExpiry:document.getElementById('nc-accred-expiry').value,
+    kyc:document.getElementById('nc-kyc').value,
+    dnc:document.getElementById('nc-dnc').value==='yes',
+    language:document.getElementById('nc-language').value||'English',
+    finraNotes:document.getElementById('nc-finra-notes').value.trim(),
+    notes:document.getElementById('nc-notes').value.trim(),
+    addedDate:today(),lastContact:today(),
+    referralsGiven:0,coInvestors:[],anniversaryDate:null,
+    // Auto-create prospect stage
+    prospectStage:'Prospect',
+  };
   S.contacts.push(c);
-  logActivity({contactId:c.id,type:'note',notes:'Contact added to CRM. Source: '+(c.leadSource||'Unknown'),date:today(),user:S.currentUser});
+  // Auto-create a prospect-level pipeline entry (no offering yet)
+  const prospectInv={
+    id:uid(),contactId:c.id,entity:'',offering:'Prospect',
+    stage:'Prospect',circle:'soft',amount:0,offering506:'',
+    flatRate:'',flatTerm:'',startDate:'',expDate:'',
+    capitalCallDate:'',ppmVersion:'',subStatus:'unsent',
+    notes:'Auto-created on contact entry',addedDate:today(),
+    stageHistory:[{stage:'Prospect',date:today(),user:S.currentUser}],
+    isProspectPlaceholder:true,
+  };
+  S.investments.push(prospectInv);
+  logActivity({contactId:c.id,type:'note',notes:'Contact added to CRM as Prospect. Source: '+(c.leadSource||'Unknown'),date:today(),user:S.currentUser});
+  autoCreateFollowupTask(c.id,'Prospect',prospectInv.id);
   saveState();populateUserSelects();renderContacts();updateBadges();closeModal('add-contact-modal');
-  ['nc-first','nc-last','nc-email','nc-phone','nc-address','nc-spouse','nc-spouse-email','nc-linkedin','nc-profession','nc-notes','nc-referred-by','nc-contact-time','nc-finra-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  showToast('Investor added successfully');
+  ['nc-first','nc-last','nc-email','nc-phone','nc-address','nc-spouse','nc-spouse-email','nc-linkedin','nc-profession','nc-company','nc-notes','nc-referred-by','nc-contact-time','nc-finra-notes','nc-est-capital'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('dup-warning').style.display='none';
+  showToast('Investor added — appears in Pipeline as Prospect');
 }
+
 function checkDuplicate(){
   const first=document.getElementById('nc-first').value.trim().toLowerCase();
   const last=document.getElementById('nc-last').value.trim().toLowerCase();
@@ -1424,6 +1730,7 @@ function checkDuplicate(){
   if(dup){warn.style.display='flex';document.getElementById('dup-name').textContent=dup.first+' '+dup.last+' (added '+fmtDate(dup.addedDate)+')';}
   else warn.style.display='none';
 }
+
 function deleteContact(id){
   if(!confirm('Delete this investor and all associated records?'))return;
   S.contacts=S.contacts.filter(c=>c.id!==id);
@@ -1432,19 +1739,30 @@ function deleteContact(id){
   S.tasks=S.tasks.filter(t=>t.contactId!==id);
   saveState();closeModal('contact-detail-modal');renderContacts();updateBadges();showToast('Investor deleted');
 }
+
 function saveContactEdits(){
   const c=S.contacts.find(x=>x.id===S._viewingContact);if(!c)return;
-  ['first','last','email','phone','address','spouse','spouseEmail','linkedin','profession','assignee','entityType','leadSource','referredBy','commPref','contactTime','language','finraNotes','notes'].forEach(f=>{const el=document.getElementById('cde-'+f);if(el)c[f]=el.value;});
+  ['first','last','email','profession','company','assignee','entityType','leadSource','referredBy','commPref','contactTime','language','finraNotes','notes'].forEach(f=>{const el=document.getElementById('cde-'+f);if(el)c[f]=el.value;});
+  const ph=document.getElementById('cde-phone');if(ph)c.phone=fmtPhone(ph.value);
+  const addr=document.getElementById('cde-address');if(addr)c.address=addr.value;
+  const sp=document.getElementById('cde-spouse');if(sp)c.spouse=sp.value;
+  const spe=document.getElementById('cde-spouseEmail');if(spe)c.spouseEmail=spe.value;
+  const li=document.getElementById('cde-linkedin');if(li)c.linkedin=li.value;
   const w=document.getElementById('cde-warmth');if(w)c.warmth=parseInt(w.value)||3;
-  const ec=document.getElementById('cde-estCapital');if(ec)c.estCapital=parseFloat(ec.value)||0;
+  const ec=document.getElementById('cde-estCapital');if(ec)c.estCapital=parseFloat(ec.value.replace(/[^0-9.]/g,''))||0;
   const ac=document.getElementById('cde-accredited');if(ac)c.accredited=ac.value;
   const ae=document.getElementById('cde-accredExpiry');if(ae)c.accredExpiry=ae.value;
   const kyc=document.getElementById('cde-kyc');if(kyc)c.kyc=kyc.value;
   const dnc=document.getElementById('cde-dnc');if(dnc)c.dnc=dnc.value==='yes';
+  // Co-investors
+  const co=document.getElementById('cde-coinvestors');if(co){const ids=Array.from(co.selectedOptions).map(o=>o.value);c.coInvestors=ids;}
+  if(c.email&&!validEmail(c.email)){alert('Email address is not valid.');return;}
   saveState();renderContactDetail(c.id);renderContacts();showToast('Changes saved');
 }
-
+</script><script>
+// ═══════════════════════════════════════════════════════════
 // INVESTMENT CRUD
+// ═══════════════════════════════════════════════════════════
 function filterOfferingsByEntity(){
   const entity=document.getElementById('inv-entity-sel').value;
   const sel=document.getElementById('inv-offering-sel');
@@ -1452,42 +1770,70 @@ function filterOfferingsByEntity(){
   const opts=entity?OFFERING_BY_ENTITY[entity]:OFFERINGS.map(o=>o.id);
   (opts||[]).forEach(id=>{const o=document.createElement('option');o.value=id;o.textContent=offeringById(id).label;sel.appendChild(o);});
 }
-document.getElementById('inv-offering-sel').addEventListener('change',function(){document.getElementById('flat-interest-fields').style.display=this.value==='Flat Interest'?'block':'none';});
+document.getElementById('inv-offering-sel').addEventListener('change',function(){
+  document.getElementById('flat-interest-fields').style.display=this.value==='Flat Interest'?'block':'none';
+});
 
 function saveInvestment(presetContactId){
   const contactId=presetContactId||document.getElementById('inv-contact-select').value;
   const entity=document.getElementById('inv-entity-sel').value;
   const offering=document.getElementById('inv-offering-sel').value;
   if(!contactId||!entity||!offering){alert('Please select investor, entity, and offering.');return;}
-  const inv={id:uid(),contactId,entity,offering,stage:document.getElementById('inv-stage-sel').value,circle:document.getElementById('inv-circle').value,amount:parseFloat(document.getElementById('inv-amount').value)||0,offering506:document.getElementById('inv-506').value,flatRate:document.getElementById('inv-flat-rate').value,flatTerm:document.getElementById('inv-flat-term').value,startDate:document.getElementById('inv-start-date').value,expDate:document.getElementById('inv-exp-date').value,capitalCallDate:document.getElementById('inv-capital-call').value,ppmVersion:document.getElementById('inv-ppm-version').value,subStatus:document.getElementById('inv-sub-status').value,notes:document.getElementById('inv-notes').value,addedDate:today(),stageHistory:[{stage:document.getElementById('inv-stage-sel').value,date:today(),user:S.currentUser}],waitlisted:false};
+  const amtRaw=document.getElementById('inv-amount').value.replace(/[^0-9.]/g,'');
+  const amt=parseFloat(amtRaw)||0;
+  // Remove prospect placeholder if it exists
+  S.investments=S.investments.filter(i=>!(i.contactId===contactId&&i.isProspectPlaceholder));
+  const inv={
+    id:uid(),contactId,entity,offering,
+    stage:document.getElementById('inv-stage-sel').value,
+    circle:document.getElementById('inv-circle').value,
+    amount:amt,
+    offering506:document.getElementById('inv-506').value,
+    flatRate:document.getElementById('inv-flat-rate').value,
+    flatTerm:document.getElementById('inv-flat-term').value,
+    startDate:document.getElementById('inv-start-date').value,
+    expDate:document.getElementById('inv-exp-date').value,
+    capitalCallDate:document.getElementById('inv-capital-call').value,
+    ppmVersion:document.getElementById('inv-ppm-version').value,
+    subStatus:document.getElementById('inv-sub-status').value,
+    notes:document.getElementById('inv-notes').value,
+    addedDate:today(),
+    stageHistory:[{stage:document.getElementById('inv-stage-sel').value,date:today(),user:S.currentUser}],
+    waitlisted:false,isProspectPlaceholder:false,
+  };
   S.investments.push(inv);
   const c=S.contacts.find(x=>x.id===contactId);
   if(c&&!c.anniversaryDate&&inv.startDate)c.anniversaryDate=inv.startDate;
-  logActivity({contactId,type:'note',notes:'Investment record created: '+offering+' ('+entity+') — '+fmt$(inv.amount),date:today(),user:S.currentUser});
+  logActivity({contactId,type:'note',notes:'Investment record created: '+offering+' ('+entity+') — '+fmt$(amt),date:today(),user:S.currentUser});
   autoCreateFollowupTask(contactId,inv.stage,inv.id);
-  saveState();closeModal('add-investment-modal');renderInvestments();renderPipeline();renderDashboard();showToast('Investment record saved');
+  saveState();closeModal('add-investment-modal');renderInvestments();renderPipeline();renderDashboard();
+  showToast('Investment record saved');
 }
+
 function openAddInvestmentForContact(){
   const contactId=S._viewingContact||'';
   closeModal('contact-detail-modal');
   populateUserSelects();
   document.getElementById('inv-contact-select').value=contactId;
-  // Small delay so the first modal fully closes before the second opens
   setTimeout(()=>openModal('add-investment-modal'),150);
 }
+
 function deleteInvestment(id){
   if(!confirm('Delete this investment record?'))return;
   S.investments=S.investments.filter(i=>i.id!==id);
+  // Re-add prospect placeholder if no investments remain
+  const inv=S.investments.find(x=>x.id===id);
   saveState();closeModal('investment-detail-modal');renderInvestments();renderPipeline();renderDashboard();showToast('Investment deleted');
 }
+
 function saveInvestmentEdits(){
   const inv=S.investments.find(x=>x.id===S._viewingInvestment);if(!inv)return;
   ['entity','offering','stage','circle','offering506','flatRate','flatTerm','startDate','expDate','capitalCallDate','ppmVersion','subStatus','notes'].forEach(f=>{const el=document.getElementById('invde-'+f);if(el)inv[f]=el.value;});
-  const am=document.getElementById('invde-amount');if(am)inv.amount=parseFloat(am.value)||0;
+  const am=document.getElementById('invde-amount');if(am)inv.amount=parseFloat(am.value.replace(/[^0-9.]/g,''))||0;
   saveState();renderInvestmentDetail(inv.id);renderPipeline();renderDashboard();showToast('Investment saved');
 }
 
-// STAGE ADVANCEMENT
+// ── STAGE ADVANCEMENT ───────────────────────────────────────
 let _advanceData=null;
 function advanceStage(invId){
   const inv=S.investments.find(x=>x.id===invId);if(!inv)return;
@@ -1498,18 +1844,24 @@ function advanceStage(invId){
   document.getElementById('advance-title').textContent='Advance to '+next;
   document.getElementById('advance-desc').textContent='Moving "'+inv.stage+'" → "'+next+'". This logs the change and resets the follow-up timer.';
   document.getElementById('advance-note').value='';
-  openModal('advance-stage-modal');
+  // Close any open modal first
+  document.querySelectorAll('.modal-overlay.open').forEach(m=>m.classList.remove('open'));
+  setTimeout(()=>openModal('advance-stage-modal'),150);
 }
 function confirmAdvanceStage(){
   if(!_advanceData)return;
   const {invId,from,to}=_advanceData;
   const inv=S.investments.find(x=>x.id===invId);if(!inv)return;
   const note=document.getElementById('advance-note').value.trim();
+  // If advancing from prospect placeholder, convert it to real stage
+  if(inv.isProspectPlaceholder&&to!=='Prospect'){
+    inv.isProspectPlaceholder=false;
+  }
   inv.stage=to;
   if(!inv.stageHistory)inv.stageHistory=[];
   inv.stageHistory.push({stage:to,date:today(),user:S.currentUser,note});
   const c=S.contacts.find(x=>x.id===inv.contactId);
-  logActivity({contactId:inv.contactId,type:'note',notes:'Stage advanced: '+from+' → '+to+' ('+inv.offering+')'+(note?'\n'+note:''),date:today(),user:S.currentUser});
+  logActivity({contactId:inv.contactId,type:'note',notes:'Stage advanced: '+from+' → '+to+' ('+(inv.isProspectPlaceholder?'General':inv.offering)+')'+(note?'\n'+note:''),date:today(),user:S.currentUser});
   autoCreateFollowupTask(inv.contactId,to,invId);
   if(c)c.lastContact=today();
   saveState();closeModal('advance-stage-modal');
@@ -1519,11 +1871,11 @@ function confirmAdvanceStage(){
   showToast('Advanced to '+to);_advanceData=null;
 }
 
-// AUTO FOLLOW-UP TASKS
+// ── AUTO FOLLOW-UP TASKS ─────────────────────────────────────
 const STAGE_TASKS={
   'Prospect':[{days:3,title:'Check-in: Confirm documents received',type:'email'},{days:7,title:'Share relevant content (impact story/market data)',type:'email'},{days:14,title:'Schedule follow-up call to address questions',type:'call'}],
   'Discovery Meeting':[{days:1,title:'Send fund document package (PPM, Executive Summary, Terms)',type:'email'},{days:3,title:'Confirm documents received — offer to answer questions',type:'email'}],
-  'Committed':[{days:1,title:'Send warm intro email — Sam to Julie handoff',type:'email'},{days:2,title:'Prepare investor folder and onboarding documents',type:'admin'}],
+  'Committed':[{days:1,title:'Send warm intro email — fundraiser to Julie handoff',type:'email'},{days:2,title:'Prepare investor folder and onboarding documents',type:'admin'}],
   'Onboarding':[{days:1,title:'Send onboarding documentation email',type:'email'},{days:5,title:'Follow up on outstanding documents',type:'email'},{days:7,title:'Confirm wire received and notify fundraiser',type:'admin'}],
   'Active Investor':[{days:1,title:'Send confirmation & thank you email',type:'email'},{days:1,title:'Send welcome package (partner letter + what to expect)',type:'admin'}],
 };
@@ -1531,15 +1883,15 @@ function autoCreateFollowupTask(contactId,stage,invId){
   const tasks=STAGE_TASKS[stage];if(!tasks)return;
   const c=S.contacts.find(x=>x.id===contactId);
   const inv=S.investments.find(x=>x.id===invId);
-  const assignee=c?c.assignee:S.currentUser;
+  const assignee=(c&&c.assignee)||S.currentUser;
   tasks.forEach(t=>{
-    const dueDate=new Date();dueDate.setDate(dueDate.getDate()+t.days);
-    S.tasks.push({id:uid(),title:'['+((inv&&inv.offering)||'')+'] '+t.title+' — '+((c&&c.first+' '+c.last)||''),assignee:assignee||S.currentUser,due:dueDate.toISOString().split('T')[0],contactId,investmentId:invId,type:t.type,done:false,addedDate:today(),autoGenerated:true,notes:''});
+    const due=new Date();due.setDate(due.getDate()+t.days);
+    S.tasks.push({id:uid(),title:'['+(inv&&!inv.isProspectPlaceholder?inv.offering:'New Prospect')+'] '+t.title+' — '+((c&&c.first+' '+c.last)||''),assignee,due:due.toISOString().split('T')[0],contactId,investmentId:invId,type:t.type,done:false,addedDate:today(),autoGenerated:true,notes:''});
   });
   saveState();updateBadges();
 }
 
-// ACTIVITY
+// ── ACTIVITY ─────────────────────────────────────────────────
 function logActivity(act){
   S.activities.unshift({id:uid(),contactId:act.contactId,type:act.type,notes:act.notes,date:act.date||today(),timestamp:now(),user:act.user||S.currentUser});
   const c=S.contacts.find(x=>x.id===act.contactId);
@@ -1558,18 +1910,13 @@ function saveActivity(){
 function quickLogActivity(){
   const contactId=S._viewingContact||'';
   closeModal('contact-detail-modal');
-  setTimeout(()=>{
-    document.getElementById('act-contact').value=contactId;
-    document.getElementById('act-date').value=today();
-    document.getElementById('act-notes').value='';
-    openModal('log-activity-modal');
-  },150);
+  setTimeout(()=>{document.getElementById('act-contact').value=contactId;document.getElementById('act-date').value=today();document.getElementById('act-notes').value='';openModal('log-activity-modal');},150);
 }
 
-// TASKS
+// ── TASKS ─────────────────────────────────────────────────────
 function saveTask(){
   const title=document.getElementById('task-title-inp').value.trim();if(!title){alert('Task title required.');return;}
-  S.tasks.push({id:uid(),title,assignee:document.getElementById('task-assignee-inp').value,due:document.getElementById('task-due').value,contactId:document.getElementById('task-contact-inp').value,type:document.getElementById('task-type-inp').value,notes:document.getElementById('task-notes-inp').value,done:false,addedDate:today()});
+  S.tasks.push({id:uid(),title,assignee:document.getElementById('task-assignee-inp').value||S.currentUser,due:document.getElementById('task-due').value,contactId:document.getElementById('task-contact-inp').value,type:document.getElementById('task-type-inp').value,notes:document.getElementById('task-notes-inp').value,done:false,addedDate:today()});
   saveState();closeModal('add-task-modal');renderTasks();updateBadges();showToast('Task added');
 }
 function toggleTask(id){
@@ -1577,23 +1924,41 @@ function toggleTask(id){
   t.done=!t.done;if(t.done)t.completedDate=today();else delete t.completedDate;
   saveState();renderTasks();updateBadges();
 }
-function taskDueClass(due,done){
-  if(done)return'due-ok';if(!due)return'';const d=daysUntil(due);
-  if(d<0)return'due-overdue';if(d===0)return'due-today';if(d<=3)return'due-soon';return'due-ok';
+function taskDueClass(due,done){if(done)return'due-ok';if(!due)return'';const d=daysUntil(due);if(d<0)return'due-overdue';if(d===0)return'due-today';if(d<=3)return'due-soon';return'due-ok';}
+</script><script>
+// ═══════════════════════════════════════════════════════════
+// TEMPLATES & GMAIL
+// ═══════════════════════════════════════════════════════════
+function defaultTemplates(){return[
+  {id:uid(),name:'Initial Outreach',stage:'Prospect',role:'fundraiser',subject:'Connecting — Impact Investing with Refuge Homes',body:'Hi [INVESTOR_NAME],\n\n[FUNDRAISER_NAME] here — I wanted to reach out personally because I think there may be a strong fit between your goals and what we\'re doing at Refuge Homes.\n\nWe\'re a mission-driven real estate company building and managing residential properties that transform lives. Our investors earn strong returns while making a measurable impact on families in need.\n\nWould you be open to a 20-minute conversation?\n\n[FUNDRAISER_NAME]\n[FUNDRAISER_EMAIL]'},
+  {id:uid(),name:'Day 3 — Document Check-in',stage:'Follow-up',role:'fundraiser',subject:'Quick check-in — [OFFERING] documents',body:'Hi [INVESTOR_NAME],\n\nJust wanted to make sure the documents came through clearly and that you had a chance to take a look.\n\nHappy to answer any questions or jump on a quick call.\n\nThanks,\n[FUNDRAISER_NAME]'},
+  {id:uid(),name:'Day 7 — Value-Add Follow-up',stage:'Follow-up',role:'fundraiser',subject:'Something I thought you\'d find interesting',body:'Hi [INVESTOR_NAME],\n\nI\'ve been thinking about our conversation and wanted to share something relevant.\n\n[INSERT RELEVANT CONTENT — impact story, market insight, or portfolio update]\n\nStill happy to answer any questions about the [OFFERING].\n\nBest,\n[FUNDRAISER_NAME]'},
+  {id:uid(),name:'Day 14 — Follow-up Call Request',stage:'Follow-up',role:'fundraiser',subject:'Worth a quick call?',body:'Hi [INVESTOR_NAME],\n\nIt\'s been a couple of weeks since I sent over the documents. Would you be open to a quick 15-minute call this week?\n\n[FUNDRAISER_NAME]'},
+  {id:uid(),name:'Sam → Julie Handoff',stage:'Handoff',role:'fundraiser',subject:'Investor Handoff — [INVESTOR_NAME] — [OFFERING]',body:'Hi Julie (copying [INVESTOR_NAME]),\n\nI\'m excited to introduce you to [INVESTOR_NAME], who has committed to investing [AMOUNT] in our [OFFERING].\n\nJulie will guide you through the onboarding process from here and will reach out shortly.\n\n[INVESTOR_NAME] — please don\'t hesitate to reach out to me with any questions.\n\n[Relationship notes for Julie: ADD NOTES HERE]\n\nLooking forward to having you on board!\n[FUNDRAISER_NAME]'},
+  {id:uid(),name:'Julie — Onboarding Documents',stage:'Onboarding',role:'admin',subject:'Welcome — Your Onboarding Documents | [OFFERING]',body:'Dear [INVESTOR_NAME],\n\nThank you for your commitment to the [OFFERING]. It is our privilege to have you on board.\n\nPlease find attached your onboarding documents:\n• Subscription Agreement\n• Investor Questionnaire\n• Accredited Investor Self-Certification\n• Investor Banking & Tax Information Form\n• Wiring Instructions\n\nWarm regards,\nJulie Durkin\nHead of Investor Relations | Refuge Homes'},
+  {id:uid(),name:'Confirmation & Thank You',stage:'Active Investor',role:'fundraiser',subject:'You\'re in — Welcome to [OFFERING]',body:'Hi [INVESTOR_NAME],\n\nI just heard from Julie that your funds have been received and your investment is officially recorded. Welcome to the [OFFERING]!\n\nOn behalf of everyone at Refuge Homes — thank you for trusting us with your investment.\n\n[FUNDRAISER_NAME]\n[FUNDRAISER_EMAIL]'},
+  {id:uid(),name:'Partner Welcome Letter',stage:'Active Investor',role:'owner',subject:'A personal welcome from Dana & Blake',body:'Dear [INVESTOR_NAME],\n\nWe wanted to write to you personally to say welcome.\n\nYour capital will go directly to work building homes and enabling the nonprofit and ministry partners who walk with families through the hardest seasons of their lives.\n\n[NAME ONE SPECIFIC FAMILY, HOME, OR NONPROFIT PARTNER]\n\nWe are grateful for the trust you are placing in us.\n\nWith gratitude,\nDana LaBerge & Blake Anderson'},
+  {id:uid(),name:'Re-engagement (Cold Lead)',stage:'Prospect',role:'fundraiser',subject:'Still here if the timing is ever right',body:'Hi [INVESTOR_NAME],\n\nI know life gets busy and timing isn\'t always right. I wanted to check in one more time before I stop following up.\n\nWishing you well either way,\n[FUNDRAISER_NAME]'},
+];}
+
+function mergeTemplate(t,contactId){
+  let body=t.body,subject=t.subject||'';
+  const u=userById(S.currentUser);
+  if(contactId){
+    const c=S.contacts.find(x=>x.id===contactId);
+    const inv=S.investments.filter(x=>x.contactId===contactId&&!x.isProspectPlaceholder);
+    if(c){
+      const name=c.first+' '+c.last;
+      body=body.replace(/\[INVESTOR_NAME\]/g,name);subject=subject.replace(/\[INVESTOR_NAME\]/g,name);
+      body=body.replace(/\[AMOUNT\]/g,fmt$(inv[0]&&inv[0].amount));subject=subject.replace(/\[AMOUNT\]/g,fmt$(inv[0]&&inv[0].amount));
+      body=body.replace(/\[OFFERING\]/g,(inv[0]&&inv[0].offering)||'');subject=subject.replace(/\[OFFERING\]/g,(inv[0]&&inv[0].offering)||'');
+    }
+  }
+  body=body.replace(/\[FUNDRAISER_NAME\]/g,u.name);body=body.replace(/\[FUNDRAISER_EMAIL\]/g,u.email);
+  subject=subject.replace(/\[FUNDRAISER_NAME\]/g,u.name);
+  return{body,subject};
 }
 
-// TEMPLATES
-function defaultTemplates(){return [
-  {id:uid(),name:'Initial Outreach',stage:'Prospect',role:'fundraiser',subject:'Connecting — Impact Investing with Refuge Homes',body:'Hi [INVESTOR_NAME],\n\n[FUNDRAISER_NAME] here — I wanted to reach out personally because I think there may be a strong fit between your goals and what we\'re doing at Refuge Homes.\n\nWe\'re a mission-driven real estate company building and managing residential properties that transform lives. Our investors earn strong returns while making a measurable impact on families in need.\n\nWould you be open to a 20-minute conversation? I\'d love to learn more about your investment goals and share what we\'re working on.\n\nLooking forward to connecting,\n[FUNDRAISER_NAME]\n[FUNDRAISER_EMAIL]'},
-  {id:uid(),name:'Day 3 — Document Check-in',stage:'Follow-up',role:'fundraiser',subject:'Quick check-in — [OFFERING] documents',body:'Hi [INVESTOR_NAME],\n\nJust wanted to make sure the documents I sent came through clearly and that you had a chance to take a look.\n\nHappy to answer any questions or jump on a quick call. Just let me know what would be most helpful.\n\nThanks,\n[FUNDRAISER_NAME]'},
-  {id:uid(),name:'Day 7 — Value-Add Follow-up',stage:'Follow-up',role:'fundraiser',subject:'Something I thought you\'d find interesting',body:'Hi [INVESTOR_NAME],\n\nI\'ve been thinking about our conversation and wanted to share something relevant.\n\n[INSERT RELEVANT CONTENT — impact story, market insight, or portfolio update]\n\nStill happy to answer any questions about the [OFFERING]. When the timing is right, just say the word.\n\nBest,\n[FUNDRAISER_NAME]'},
-  {id:uid(),name:'Day 14 — Follow-up Call Request',stage:'Follow-up',role:'fundraiser',subject:'Worth a quick call?',body:'Hi [INVESTOR_NAME],\n\nIt\'s been a couple of weeks since I sent over the documents. I want to make sure all your questions are answered before you make any decisions.\n\nWould you be open to a quick 15-minute call this week?\n\n[FUNDRAISER_NAME]'},
-  {id:uid(),name:'Sam → Julie Handoff',stage:'Handoff',role:'fundraiser',subject:'Investor Handoff — [INVESTOR_NAME] — [OFFERING]',body:'Hi Julie (copying [INVESTOR_NAME]),\n\nI\'m excited to introduce you to [INVESTOR_NAME], who has committed to investing [AMOUNT] in our [OFFERING].\n\nJulie is our Head of Investor Relations and will guide you through the onboarding process from here. She\'ll reach out shortly with everything you need.\n\n[INVESTOR_NAME] — please don\'t hesitate to reach out to me directly with any questions along the way.\n\n[Relationship notes for Julie: ADD NOTES HERE]\n\nLooking forward to having you on board!\n[FUNDRAISER_NAME]'},
-  {id:uid(),name:'Julie — Onboarding Documents',stage:'Onboarding',role:'admin',subject:'Welcome — Your Onboarding Documents | [OFFERING]',body:'Dear [INVESTOR_NAME],\n\nThank you for your commitment to the [OFFERING]. It is our privilege to have you on board.\n\nPlease find attached your onboarding documents:\n• Subscription Agreement (for review — signature link to follow)\n• Investor Questionnaire\n• Accredited Investor Self-Certification\n• Investor Banking & Tax Information Form\n• Wiring Instructions\n\nPlease complete and return all documents at your earliest convenience. Once your Subscription Agreement is fully executed, I will send final wiring instructions.\n\nExpect your Investor Portal invitation within one week of funding.\n\nWarm regards,\nJulie Durkin\nHead of Investor Relations | Refuge Homes'},
-  {id:uid(),name:'Confirmation & Thank You',stage:'Active Investor',role:'fundraiser',subject:'You\'re in — Welcome to [OFFERING]',body:'Hi [INVESTOR_NAME],\n\nI just heard from Julie that your funds have been received and your investment is officially recorded. Welcome to the [OFFERING] — we are genuinely grateful to have you with us.\n\nYou should have received a welcome package from Dana and Blake. Please take a look when you get a chance.\n\nI\'ll keep you informed and am always available for questions.\n\nOn behalf of everyone at Refuge Homes — thank you for trusting us with your investment.\n\n[FUNDRAISER_NAME]\n[FUNDRAISER_EMAIL]'},
-  {id:uid(),name:'Partner Welcome Letter',stage:'Active Investor',role:'owner',subject:'A personal welcome from Dana & Blake',body:'Dear [INVESTOR_NAME],\n\nWe wanted to write to you personally to say welcome — and to say something that isn\'t in the legal documents.\n\nYour capital will go directly to work building homes and enabling the nonprofit and ministry partners who walk with families through the hardest seasons of their lives.\n\n[NAME ONE SPECIFIC FAMILY, HOME, OR NONPROFIT PARTNER THEIR CAPITAL WILL REACH]\n\nWe are grateful for the trust you are placing in us. We take that seriously — both as stewards of your capital and as people who believe deeply in this work.\n\nPlease reach out to either of us directly anytime. This is a relationship, not a transaction.\n\nWith gratitude,\nDana LaBerge & Blake Anderson'},
-  {id:uid(),name:'Re-engagement (Cold Lead)',stage:'Prospect',role:'fundraiser',subject:'Still here if the timing is ever right',body:'Hi [INVESTOR_NAME],\n\nI know life gets busy and timing isn\'t always right. I wanted to check in one more time before I stop following up.\n\nIf the [OFFERING] ever becomes a fit — I\'m always happy to connect.\n\nWishing you well either way,\n[FUNDRAISER_NAME]'},
-];}
 function saveTemplate(){
   const name=document.getElementById('tmpl-name-inp').value.trim();
   const body=document.getElementById('tmpl-body-inp').value.trim();
@@ -1610,168 +1975,199 @@ function editTemplate(id){
   openModal('add-template-modal');
 }
 function deleteTemplate(id){if(!confirm('Delete this template?'))return;S.templates=S.templates.filter(x=>x.id!==id);saveState();renderTemplates();showToast('Template deleted');}
-function mergeTemplate(t, contactId) {
-  let body = t.body;
-  let subject = t.subject || '';
-  const u = userById(S.currentUser);
-  if (contactId) {
-    const c = S.contacts.find(x => x.id === contactId);
-    const inv = S.investments.filter(x => x.contactId === contactId);
-    if (c) {
-      const name = c.first + ' ' + c.last;
-      body = body.replace(/\[INVESTOR_NAME\]/g, name);
-      subject = subject.replace(/\[INVESTOR_NAME\]/g, name);
-      body = body.replace(/\[AMOUNT\]/g, fmt$(inv[0] && inv[0].amount));
-      subject = subject.replace(/\[AMOUNT\]/g, fmt$(inv[0] && inv[0].amount));
-      body = body.replace(/\[OFFERING\]/g, (inv[0] && inv[0].offering) || '');
-      subject = subject.replace(/\[OFFERING\]/g, (inv[0] && inv[0].offering) || '');
-      // Pre-fill To: field with investor email if available
-    }
-  }
-  body = body.replace(/\[FUNDRAISER_NAME\]/g, u.name);
-  body = body.replace(/\[FUNDRAISER_EMAIL\]/g, u.email);
-  subject = subject.replace(/\[FUNDRAISER_NAME\]/g, u.name);
-  return { body, subject };
+function copyTemplate(id,contactId){
+  const t=S.templates.find(x=>x.id===id);if(!t)return;
+  const{body}=mergeTemplate(t,contactId);
+  navigator.clipboard.writeText(body).then(()=>showToast('Copied!')).catch(()=>{const ta=document.createElement('textarea');ta.value=body;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();showToast('Copied!');});
+}
+function openInGmail(id,contactId){
+  const t=S.templates.find(x=>x.id===id);if(!t)return;
+  const{body,subject}=mergeTemplate(t,contactId);
+  let to='';
+  if(contactId){const c=S.contacts.find(x=>x.id===contactId);if(c&&c.email)to=c.email;}
+  const url='https://mail.google.com/mail/?view=cm&fs=1'+(to?'&to='+encodeURIComponent(to):'')+
+    '&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  window.open(url,'_blank');
 }
 
-function copyTemplate(id, contactId) {
-  const t = S.templates.find(x => x.id === id); if (!t) return;
-  const { body } = mergeTemplate(t, contactId);
-  navigator.clipboard.writeText(body)
-    .then(() => showToast('Copied!'))
-    .catch(() => { const ta = document.createElement('textarea'); ta.value = body; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); showToast('Copied!'); });
-}
-
-function openInGmail(id, contactId) {
-  const t = S.templates.find(x => x.id === id); if (!t) return;
-  const { body, subject } = mergeTemplate(t, contactId);
-  // Get investor email for To: field if we have a contact
-  let to = '';
-  if (contactId) {
-    const c = S.contacts.find(x => x.id === contactId);
-    if (c && c.email) to = c.email;
-  }
-  const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1'
-    + (to ? '&to=' + encodeURIComponent(to) : '')
-    + '&su=' + encodeURIComponent(subject)
-    + '&body=' + encodeURIComponent(body);
-  window.open(gmailUrl, '_blank');
-}
-
-// GOALS
+// ── GOALS ─────────────────────────────────────────────────────
 function saveGoals(){
   S.goals={capital:parseFloat(document.getElementById('goal-capital').value)||0,investors:parseInt(document.getElementById('goal-investors').value)||0,meetings:parseInt(document.getElementById('goal-meetings').value)||0,touchpoints:parseInt(document.getElementById('goal-touchpoints').value)||0};
   saveState();closeModal('goals-modal');renderDashboard();showToast('Goals saved');
 }
 function loadGoalsModal(){document.getElementById('goal-capital').value=S.goals.capital;document.getElementById('goal-investors').value=S.goals.investors;document.getElementById('goal-meetings').value=S.goals.meetings;document.getElementById('goal-touchpoints').value=S.goals.touchpoints;}
-</script><script>
-// NOTIFICATIONS & BADGES
+
+// ── NOTIFICATIONS & BADGES ────────────────────────────────────
 function updateBadges(){
-  const od=S.tasks.filter(t=>!t.done&&t.due&&daysUntil(t.due)<0).length;
-  const td=S.tasks.filter(t=>!t.done&&t.due&&daysUntil(t.due)===0).length;
-  const bt=document.getElementById('badge-tasks');
-  bt.textContent=od+td||'';bt.style.display=od+td?'':'none';
-  document.getElementById('badge-contacts').textContent=S.contacts.length;
-  const nc=buildNotifications().length;
-  const nel=document.getElementById('notif-count');nel.textContent=nc;nel.style.display=nc?'inline':'none';
+  const od=S.tasks.filter(t=>!t.done&&t.due&&daysUntil(t.due)<0&&(!t.assignee||t.assignee===S.currentUser)).length;
+  const td=S.tasks.filter(t=>!t.done&&t.due&&daysUntil(t.due)===0&&(!t.assignee||t.assignee===S.currentUser)).length;
+  const bt=document.getElementById('badge-tasks');bt.textContent=od+td||'';bt.style.display=od+td?'':'none';
+  document.getElementById('badge-contacts').textContent=visibleContacts().length;
+  const nc=buildNotifications().length;const nel=document.getElementById('notif-count');nel.textContent=nc;nel.style.display=nc?'inline':'none';
 }
 function buildNotifications(){
-  const notes=[];
-  S.tasks.filter(t=>!t.done&&t.due&&daysUntil(t.due)<0).forEach(t=>{const c=S.contacts.find(x=>x.id===t.contactId);notes.push({type:'overdue',msg:'Overdue: '+t.title+(c?' — '+c.first+' '+c.last:''),date:t.due});});
-  S.investments.filter(i=>i.expDate&&daysUntil(i.expDate)<=90&&daysUntil(i.expDate)>=0).forEach(inv=>{const c=S.contacts.find(x=>x.id===inv.contactId);notes.push({type:'expiring',msg:(c?c.first+' '+c.last:'Investor')+' — '+inv.offering+' expires in '+daysUntil(inv.expDate)+'d',date:inv.expDate});});
-  S.contacts.filter(c=>c.accredExpiry&&daysUntil(c.accredExpiry)<=30&&daysUntil(c.accredExpiry)>=0).forEach(c=>{notes.push({type:'accred',msg:'Accreditation expiring: '+c.first+' '+c.last+' — '+daysUntil(c.accredExpiry)+'d',date:c.accredExpiry});});
-  S.investments.filter(i=>STAGES.includes(i.stage)&&i.stageHistory&&i.stageHistory.length>0).forEach(inv=>{
-    const last=inv.stageHistory[inv.stageHistory.length-1];
-    if(daysAgo(last.date)>=(S.settings.stallDays||14)){const c=S.contacts.find(x=>x.id===inv.contactId);notes.push({type:'stalled',msg:'Stalled: '+(c?c.first+' '+c.last:'Investor')+' — '+inv.offering+' ('+daysAgo(last.date)+'d in '+inv.stage+')',date:last.date});}
-  });
+  const notes=[];const myContacts=new Set(visibleContacts().map(c=>c.id));
+  S.tasks.filter(t=>!t.done&&t.due&&daysUntil(t.due)<0&&(!t.assignee||t.assignee===S.currentUser)).forEach(t=>{const c=S.contacts.find(x=>x.id===t.contactId);notes.push({type:'overdue',msg:'Overdue: '+t.title+(c?' — '+c.first+' '+c.last:''),date:t.due});});
+  S.investments.filter(i=>myContacts.has(i.contactId)&&i.expDate&&daysUntil(i.expDate)<=90&&daysUntil(i.expDate)>=0).forEach(inv=>{const c=S.contacts.find(x=>x.id===inv.contactId);notes.push({type:'expiring',msg:(c?c.first+' '+c.last:'Investor')+' — '+inv.offering+' expires in '+daysUntil(inv.expDate)+'d',date:inv.expDate});});
+  visibleContacts().filter(c=>c.accredExpiry&&daysUntil(c.accredExpiry)<=30&&daysUntil(c.accredExpiry)>=0).forEach(c=>{notes.push({type:'accred',msg:'Accreditation expiring: '+c.first+' '+c.last+' — '+daysUntil(c.accredExpiry)+'d',date:c.accredExpiry});});
+  S.investments.filter(i=>myContacts.has(i.contactId)&&STAGES.includes(i.stage)&&i.stageHistory&&i.stageHistory.length>0).forEach(inv=>{const last=inv.stageHistory[inv.stageHistory.length-1];if(daysAgo(last.date)>=(S.settings.stallDays||14)){const c=S.contacts.find(x=>x.id===inv.contactId);notes.push({type:'stalled',msg:'Stalled: '+(c?c.first+' '+c.last:'Investor')+' — '+(inv.isProspectPlaceholder?'Prospect':inv.offering)+' ('+daysAgo(last.date)+'d in '+inv.stage+')',date:last.date});}});
   return notes;
 }
 function toggleNotif(){
   const panel=document.getElementById('notif-panel');panel.classList.toggle('open');
   if(panel.classList.contains('open')){
-    const notes=buildNotifications();
-    const icons={overdue:'⏰',expiring:'📅',accred:'🛡',stalled:'⚠️'};
+    const notes=buildNotifications();const icons={overdue:'⏰',expiring:'📅',accred:'🛡',stalled:'⚠️'};
     document.getElementById('notif-list').innerHTML=notes.length?notes.map(n=>'<div class="notif-item"><div style="font-size:18px;">'+icons[n.type]+'</div><div style="flex:1;"><div style="font-size:13px;color:var(--ink);">'+n.msg+'</div><div style="font-size:11px;color:var(--ink-light);">'+fmtDate(n.date)+'</div></div></div>').join(''):'<div class="card" style="text-align:center;padding:20px;font-size:13px;color:var(--ink-light);">✅ All clear</div>';
   }
 }
+</script><script>
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD RENDER
+// ═══════════════════════════════════════════════════════════
+function setDashView(v){
+  S.dashView=v;saveState();
+  const cb=document.getElementById('db-toggle-company');
+  const pb=document.getElementById('db-toggle-personal');
+  if(cb&&pb){
+    cb.style.background=v==='company'?'var(--teal-dark)':'transparent';
+    cb.style.color=v==='company'?'#fff':'var(--teal-dark)';
+    pb.style.background=v==='personal'?'var(--teal-dark)':'transparent';
+    pb.style.color=v==='personal'?'#fff':'var(--teal-dark)';
+  }
+  renderDashboard();
+}
 
-// DASHBOARD
 function renderDashboard(){
-  const entityF=document.getElementById('db-entity-filter')&&document.getElementById('db-entity-filter').value||'all';
+  const isPersonal=S.dashView==='personal'||isFundraiser();
+  const entityF=(document.getElementById('db-entity-filter')&&document.getElementById('db-entity-filter').value)||'all';
   document.getElementById('db-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  let invs=entityF==='all'?S.investments:S.investments.filter(i=>i.entity===entityF);
-  const today_tasks=S.tasks.filter(t=>!t.done&&t.due&&daysUntil(t.due)===0);
-  const overdue_tasks=S.tasks.filter(t=>!t.done&&t.due&&daysUntil(t.due)<0);
-  const myTasks=[...overdue_tasks,...today_tasks].filter(t=>!t.assignee||t.assignee===S.currentUser);
+
+  // Show/hide dashboard toggle for owners/admin
+  const toggleEl=document.getElementById('db-view-toggle');
+  if(toggleEl){
+    if(isOwner()){toggleEl.style.display='flex';}else{toggleEl.style.display='none';}
+  }
+
+  // Determine which investments to show
+  let invs=isPersonal?visibleInvestments():S.investments;
+  let contacts=isPersonal?visibleContacts():S.contacts;
+  if(entityF!=='all'){invs=invs.filter(i=>i.entity===entityF);}
+
+  const today_tasks=S.tasks.filter(t=>!t.done&&t.due&&daysUntil(t.due)===0&&(!t.assignee||t.assignee===S.currentUser));
+  const overdue_tasks=S.tasks.filter(t=>!t.done&&t.due&&daysUntil(t.due)<0&&(!t.assignee||t.assignee===S.currentUser));
+  const myTasks=[...overdue_tasks,...today_tasks];
   const alert_el=document.getElementById('db-tasks-alert');
   alert_el.innerHTML=myTasks.length?'<div class="alert-box alert-orange" style="margin-bottom:14px;">⏰ You have <strong>'+myTasks.length+'</strong> task'+(myTasks.length>1?'s':'')+' due today or overdue. <button class="btn btn-xs" style="margin-left:8px;" onclick="showView(\'tasks\')">View Tasks →</button></div>':'';
-  const totalCap=invs.filter(i=>i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0);
-  const pipeCap=invs.filter(i=>STAGES.includes(i.stage)&&i.stage!=='Active Investor').reduce((s,i)=>s+(i.amount||0),0);
-  const activeCnt=invs.filter(i=>i.stage==='Active Investor').length;
+
+  const realInvs=invs.filter(i=>!i.isProspectPlaceholder);
+  const totalCap=realInvs.filter(i=>i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0);
+  const pipeCap=realInvs.filter(i=>STAGES.includes(i.stage)&&i.stage!=='Active Investor').reduce((s,i)=>s+(i.amount||0),0);
+  const activeCnt=realInvs.filter(i=>i.stage==='Active Investor').length;
   const prospCnt=invs.filter(i=>i.stage==='Prospect').length;
-  document.getElementById('db-stats').innerHTML='<div class="stat-card"><div class="stat-lbl">Capital Raised</div><div class="stat-val">'+fmt$(totalCap)+'</div><div class="stat-sub">Active investors</div><div class="stat-bar"></div></div><div class="stat-card"><div class="stat-lbl">Pipeline Value</div><div class="stat-val">'+fmt$(pipeCap)+'</div><div class="stat-sub">Pre-active</div><div class="stat-bar orange"></div></div><div class="stat-card"><div class="stat-lbl">Active Investors</div><div class="stat-val">'+activeCnt+'</div><div class="stat-sub">'+S.contacts.length+' total contacts</div><div class="stat-bar"></div></div><div class="stat-card"><div class="stat-lbl">Prospects</div><div class="stat-val">'+prospCnt+'</div><div class="stat-sub">Top of funnel</div><div class="stat-bar orange"></div></div><div class="stat-card"><div class="stat-lbl">Tasks Due Today</div><div class="stat-val">'+today_tasks.length+'</div><div class="stat-sub">'+overdue_tasks.length+' overdue</div><div class="stat-bar '+(overdue_tasks.length>0?'orange':'')+'"></div></div><div class="stat-card"><div class="stat-lbl">Soft Circle</div><div class="stat-val">'+fmt$(invs.filter(i=>i.circle==='soft').reduce((s,i)=>s+(i.amount||0),0))+'</div><div class="stat-sub">Verbal commitments</div><div class="stat-bar"></div></div>';
-  const stageCounts=STAGES.map(st=>({stage:st,count:invs.filter(i=>i.stage===st).length,val:invs.filter(i=>i.stage===st).reduce((s,i)=>s+(i.amount||0),0)}));
+  const viewLabel=isPersonal?'(My Pipeline)':'(Company)';
+
+  document.getElementById('db-stats').innerHTML=
+    '<div class="stat-card"><div class="stat-lbl">Capital Raised '+viewLabel+'</div><div class="stat-val">'+fmt$(totalCap)+'</div><div class="stat-sub">Active investors</div><div class="stat-bar"></div></div>'+
+    '<div class="stat-card"><div class="stat-lbl">Pipeline Value '+viewLabel+'</div><div class="stat-val">'+fmt$(pipeCap)+'</div><div class="stat-sub">Pre-active</div><div class="stat-bar orange"></div></div>'+
+    '<div class="stat-card"><div class="stat-lbl">Active Investors '+viewLabel+'</div><div class="stat-val">'+activeCnt+'</div><div class="stat-sub">'+contacts.length+' total contacts</div><div class="stat-bar"></div></div>'+
+    '<div class="stat-card"><div class="stat-lbl">Prospects '+viewLabel+'</div><div class="stat-val">'+prospCnt+'</div><div class="stat-sub">Top of funnel</div><div class="stat-bar orange"></div></div>'+
+    '<div class="stat-card"><div class="stat-lbl">Tasks Due Today</div><div class="stat-val">'+today_tasks.length+'</div><div class="stat-sub">'+overdue_tasks.length+' overdue</div><div class="stat-bar '+(overdue_tasks.length>0?'orange':'')+'"></div></div>'+
+    '<div class="stat-card"><div class="stat-lbl">Soft Circle '+viewLabel+'</div><div class="stat-val">'+fmt$(realInvs.filter(i=>i.circle==='soft').reduce((s,i)=>s+(i.amount||0),0))+'</div><div class="stat-sub">Verbal commitments</div><div class="stat-bar"></div></div>';
+
+  const stageCounts=STAGES.map(st=>({stage:st,count:invs.filter(i=>i.stage===st).length,val:realInvs.filter(i=>i.stage===st).reduce((s,i)=>s+(i.amount||0),0)}));
   const maxCnt=Math.max(...stageCounts.map(s=>s.count),1);
   document.getElementById('db-pipeline-bars').innerHTML=stageCounts.map(s=>'<div class="rbar-row"><div class="rbar-lbl">'+s.stage+'</div><div class="rbar-track"><div class="rbar-fill" style="width:'+(s.count/maxCnt*100)+'%;"></div></div><div class="rbar-val">'+s.count+' · '+fmt$(s.val)+'</div></div>').join('');
-  const offTotals=OFFERINGS.map(o=>({label:o.label,color:o.color,total:invs.filter(i=>i.offering===o.id&&i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0)})).filter(o=>o.total>0);
+
+  const offTotals=OFFERINGS.map(o=>({label:o.label,color:o.color,total:realInvs.filter(i=>i.offering===o.id&&i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0)})).filter(o=>o.total>0);
   const maxOff=Math.max(...offTotals.map(o=>o.total),1);
   document.getElementById('db-offering-bars').innerHTML=offTotals.length?offTotals.map(o=>'<div class="rbar-row"><div class="rbar-lbl">'+o.label+'</div><div class="rbar-track"><div class="rbar-fill" style="width:'+(o.total/maxOff*100)+'%;background:'+o.color+';"></div></div><div class="rbar-val">'+fmt$(o.total)+'</div></div>').join(''):'<div class="empty" style="padding:20px;"><div class="empty-desc">No active investments yet</div></div>';
-  const expiring=S.investments.filter(i=>i.expDate&&daysUntil(i.expDate)>=0&&daysUntil(i.expDate)<=90).sort((a,b)=>daysUntil(a.expDate)-daysUntil(b.expDate));
+
+  const expiring=realInvs.filter(i=>i.expDate&&daysUntil(i.expDate)>=0&&daysUntil(i.expDate)<=90).sort((a,b)=>daysUntil(a.expDate)-daysUntil(b.expDate));
   document.getElementById('db-exp-count').textContent=expiring.length+' records';
   document.getElementById('db-expiring').innerHTML=expiring.length?'<table class="exp-table"><thead><tr><th>Investor</th><th>Offering</th><th>Amount</th><th>Expires</th></tr></thead><tbody>'+expiring.map(inv=>{const c=S.contacts.find(x=>x.id===inv.contactId);const d=daysUntil(inv.expDate);const cls=d<=14?'exp-urgent':d<=30?'exp-soon':'exp-ok';return'<tr onclick="openContactDetail(\''+inv.contactId+'\')" style="cursor:pointer;"><td>'+(c?c.first+' '+c.last:'—')+'</td><td><span class="tag">'+inv.offering+'</span></td><td>'+fmt$(inv.amount)+'</td><td><span class="exp-days '+cls+'">'+d+'d</span> '+fmtDate(inv.expDate)+'</td></tr>';}).join('')+'</tbody></table>':'<div class="empty" style="padding:20px;"><div class="empty-desc">No investments expiring in 90 days</div></div>';
-  const mStart=new Date();mStart.setDate(1);const mStr=mStart.toISOString().split('T')[0];
-  const cTM=S.investments.filter(i=>i.addedDate>=mStr&&i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0);
-  const iTM=S.contacts.filter(c=>c.addedDate>=mStr).length;
-  const meetTM=S.activities.filter(a=>a.type==='meeting'&&a.date>=mStr).length;
-  const touchTM=S.activities.filter(a=>a.date>=mStr).length;
+
+  const mStr=new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().split('T')[0];
+  const actFilter=a=>isPersonal?(a.user===S.currentUser):true;
+  const cTM=realInvs.filter(i=>i.addedDate>=mStr&&i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0);
+  const iTM=contacts.filter(c=>c.addedDate>=mStr).length;
+  const meetTM=S.activities.filter(a=>a.type==='meeting'&&a.date>=mStr&&actFilter(a)).length;
+  const touchTM=S.activities.filter(a=>a.date>=mStr&&actFilter(a)).length;
   const goals=[{label:'Capital Raised',cur:cTM,goal:S.goals.capital,fmt:true},{label:'New Investors',cur:iTM,goal:S.goals.investors,fmt:false},{label:'Discovery Meetings',cur:meetTM,goal:S.goals.meetings,fmt:false},{label:'Touchpoints',cur:touchTM,goal:S.goals.touchpoints,fmt:false}];
-  document.getElementById('db-goals').innerHTML=goals.map(g=>{const pct=g.goal>0?Math.min(100,Math.round(g.cur/g.goal*100)):0;const over=pct>=100;return'<div class="goal-bar-wrap"><div class="goal-meta"><span>'+g.label+'</span><span style="font-weight:600;color:'+(over?'var(--gn)':'var(--ink)')+';">'+(g.fmt?fmt$(g.cur):g.cur)+' / '+(g.fmt?fmt$(g.goal):g.goal)+'</span></div><div class="goal-bar-track"><div class="goal-bar-fill '+(over?'over:':'')+'" style="width:'+pct+'%;"></div></div><div style="font-size:10px;color:var(--ink-light);text-align:right;">'+pct+'%</div></div>';}).join('');
-  const recent=S.activities.slice(0,8);
+  document.getElementById('db-goals').innerHTML=goals.map(g=>{const pct=g.goal>0?Math.min(100,Math.round(g.cur/g.goal*100)):0;const over=pct>=100;return'<div class="goal-bar-wrap"><div class="goal-meta"><span>'+g.label+'</span><span style="font-weight:600;color:'+(over?'var(--gn)':'var(--ink)')+';">'+(g.fmt?fmt$(g.cur):g.cur)+' / '+(g.fmt?fmt$(g.goal):g.goal)+'</span></div><div class="goal-bar-track"><div class="goal-bar-fill '+(over?'over':'')+'\" style="width:'+pct+'%;"></div></div><div style="font-size:10px;color:var(--ink-light);text-align:right;">'+pct+'%</div></div>';}).join('');
+
   const actIcons={call:'📞',email:'✉️',meeting:'🤝',note:'📝'};
-  document.getElementById('db-feed').innerHTML=recent.length?recent.map(a=>{const c=S.contacts.find(x=>x.id===a.contactId);const u=userById(a.user);return'<div class="feed-item"><div class="feed-dot"></div><div><div style="color:var(--ink);">'+(actIcons[a.type]||'📌')+' '+a.notes.substring(0,80)+(a.notes.length>80?'…':'')+'</div><div style="font-size:11px;color:var(--ink-light);">'+(c?c.first+' '+c.last:'—')+' · '+u.name+' · '+fmtDate(a.date)+'</div></div></div>';}).join(''):'<div class="empty" style="padding:20px;"><div class="empty-desc">No activity logged yet</div></div>';
+  const recentActs=S.activities.filter(a=>isPersonal?a.user===S.currentUser:true).slice(0,8);
+  document.getElementById('db-feed').innerHTML=recentActs.length?recentActs.map(a=>{const c=S.contacts.find(x=>x.id===a.contactId);const u=userById(a.user);return'<div class="feed-item"><div class="feed-dot"></div><div><div style="color:var(--ink);">'+(actIcons[a.type]||'📌')+' '+a.notes.substring(0,80)+(a.notes.length>80?'…':'')+'</div><div style="font-size:11px;color:var(--ink-light);">'+(c?c.first+' '+c.last:'—')+' · '+u.name+' · '+fmtDate(a.date)+'</div></div></div>';}).join(''):'<div class="empty" style="padding:20px;"><div class="empty-desc">No activity yet</div></div>';
+
   const hot=S.settings.radarHot||14;const warm=S.settings.radarWarm||7;
-  const radar=S.contacts.map(c=>({c,days:daysAgo(c.lastContact||c.addedDate)})).sort((a,b)=>b.days-a.days).slice(0,6);
+  const radar=contacts.map(c=>({c,days:daysAgo(c.lastContact||c.addedDate)})).sort((a,b)=>b.days-a.days).slice(0,6);
   document.getElementById('db-radar').innerHTML=radar.length?radar.map(({c,days})=>{const cls=days>=hot?'r-hot':days>=warm?'r-warm':'r-ok';return'<div class="radar-row" onclick="openContactDetail(\''+c.id+'\')"><div class="av av-teal" style="width:30px;height:30px;font-size:11px;">'+c.first[0]+c.last[0]+'</div><div style="flex:1;font-size:13px;">'+c.first+' '+c.last+'</div><span class="radar-days '+cls+'">'+days+'d</span></div>';}).join(''):'<div class="empty" style="padding:20px;"><div class="empty-desc">Add investors to see radar</div></div>';
 }
 </script><script>
+// ═══════════════════════════════════════════════════════════
 // CONTACTS RENDER
+// ═══════════════════════════════════════════════════════════
 function stageTagClass(st){const m={'Prospect':'tag-prospect','Discovery Meeting':'tag-discovery','Committed':'tag-committed','Onboarding':'tag-onboarding','Active Investor':'tag-active','Cold':'tag-cold','Declined':'tag-declined','On Hold':'tag-onhold','Exited':'tag-exited'};return m[st]||'';}
 function contactStage(c){
   const invs=S.investments.filter(i=>i.contactId===c.id);if(!invs.length)return'Prospect';
   const priority=[...STAGES].reverse();for(const s of priority){if(invs.find(i=>i.stage===s))return s;}return invs[0].stage;
 }
-function avatarColor(idx){const colors=['av-teal','av-orange','av-pu','av-am','av-gn'];return colors[idx%colors.length];}
+function avatarColor(idx){return['av-teal','av-orange','av-pu','av-am','av-gn'][idx%5];}
 
 function renderContacts(){
   populateUserSelects();
-  const search=document.getElementById('contact-search')&&document.getElementById('contact-search').value.toLowerCase()||'';
-  const entityF=document.getElementById('contact-entity')&&document.getElementById('contact-entity').value||'';
-  const stageF=document.getElementById('contact-stage')&&document.getElementById('contact-stage').value||'';
-  const assigneeF=document.getElementById('contact-assignee')&&document.getElementById('contact-assignee').value||'';
-  const sortF=document.getElementById('contact-sort')&&document.getElementById('contact-sort').value||'name';
-  let list=S.contacts.filter(c=>{
-    if(search&&!(c.first+' '+c.last+' '+(c.email||'')+' '+(c.phone||'')).toLowerCase().includes(search))return false;
+  const search=(document.getElementById('contact-search')&&document.getElementById('contact-search').value.toLowerCase())||'';
+  const entityF=(document.getElementById('contact-entity')&&document.getElementById('contact-entity').value)||'';
+  const stageF=(document.getElementById('contact-stage')&&document.getElementById('contact-stage').value)||'';
+  const assigneeF=(document.getElementById('contact-assignee')&&document.getElementById('contact-assignee').value)||'';
+  const sortF=(document.getElementById('contact-sort')&&document.getElementById('contact-sort').value)||'name';
+  let list=visibleContacts().filter(c=>{
+    if(search&&!(c.first+' '+c.last+' '+(c.email||'')+' '+(c.phone||'')+' '+(c.company||'')).toLowerCase().includes(search))return false;
     if(assigneeF&&c.assignee!==assigneeF)return false;
     if(stageF&&contactStage(c)!==stageF)return false;
-    if(entityF&&!S.investments.find(i=>i.contactId===c.id&&i.entity===entityF))return false;
+    if(entityF&&!S.investments.find(i=>i.contactId===c.id&&i.entity===entityF&&!i.isProspectPlaceholder))return false;
     return true;
   });
   list.sort((a,b)=>{
     if(sortF==='name')return(a.first+a.last).localeCompare(b.first+b.last);
     if(sortF==='last_contact')return daysAgo(a.lastContact)-daysAgo(b.lastContact);
-    if(sortF==='amount'){const sa=S.investments.filter(i=>i.contactId===a.id).reduce((s,i)=>s+(i.amount||0),0);const sb=S.investments.filter(i=>i.contactId===b.id).reduce((s,i)=>s+(i.amount||0),0);return sb-sa;}
+    if(sortF==='amount'){const sa=S.investments.filter(i=>i.contactId===a.id&&!i.isProspectPlaceholder).reduce((s,i)=>s+(i.amount||0),0);const sb=S.investments.filter(i=>i.contactId===b.id&&!i.isProspectPlaceholder).reduce((s,i)=>s+(i.amount||0),0);return sb-sa;}
     if(sortF==='added')return(b.addedDate||'').localeCompare(a.addedDate||'');return 0;
   });
   document.getElementById('contact-count').textContent=list.length+' investor'+(list.length!==1?'s':'');
   const hot=S.settings.radarHot||14;const warm=S.settings.radarWarm||7;
+  // Company grouping — find contacts sharing a company
+  const companyMap={};list.forEach(c=>{if(c.company){if(!companyMap[c.company])companyMap[c.company]=[];companyMap[c.company].push(c.id);}});
   document.getElementById('contacts-grid').innerHTML=list.length?list.map((c,i)=>{
     const stage=contactStage(c);
-    const invs=S.investments.filter(x=>x.contactId===c.id);
+    const invs=S.investments.filter(x=>x.contactId===c.id&&!x.isProspectPlaceholder);
     const totalAmt=invs.reduce((s,x)=>s+(x.amount||0),0);
-    const days=daysAgo(c.lastContact);
-    const daysCls=days>=hot?'days-hot':days>=warm?'days-warm':'days-ok';
+    const days=daysAgo(c.lastContact);const daysCls=days>=hot?'days-hot':days>=warm?'days-warm':'days-ok';
     const entities=[...new Set(invs.map(i=>i.entity))];
-    return'<div class="c-card" onclick="openContactDetail(\''+c.id+'\')">'+(c.dnc?'<div class="dnc-badge" style="position:absolute;top:10px;right:10px;">DNC</div>':'')+'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div class="av '+avatarColor(i)+'">'+c.first[0]+c.last[0]+'</div><div><div style="font-size:14px;font-weight:700;color:var(--ink);">'+c.first+' '+c.last+'</div><div style="font-size:11px;color:var(--ink-light);">'+(c.entityType||'')+((c.entityType&&c.profession)?' · ':'')+' '+(c.profession||'')+'</div></div></div><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;"><span class="tag '+stageTagClass(stage)+'">'+stage+'</span>'+entities.map(e=>'<span class="tag '+(e==='DKL'?'tag-dkl':e==='Refuge'?'tag-refuge':'tag-tpw')+'">'+e+'</span>').join('')+'</div><div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink-light);"><span>Assigned: <strong style="color:var(--ink);">'+(c.assignee?userById(c.assignee).name.split(' ')[0]:'—')+'</strong></span>'+(totalAmt?'<span style="font-weight:700;color:var(--teal-dark);">'+fmt$(totalAmt)+'</span>':'')+'</div><div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;"><span style="font-size:11px;color:var(--ink-light);">'+(c.email||'')+'</span><span class="pipe-item-days '+daysCls+'">'+days+'d ago</span></div></div>';
+    const coCount=(c.coInvestors||[]).length;
+    const sameCompany=c.company&&companyMap[c.company]&&companyMap[c.company].length>1;
+    return'<div class="c-card" data-id="'+c.id+'" onclick="openContactDetail(\''+c.id+'\')">'
+      +(c.dnc?'<div class="dnc-badge" style="position:absolute;top:10px;right:10px;">DNC</div>':'')
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
+      +'<div class="av '+avatarColor(i)+'">'+c.first[0]+c.last[0]+'</div>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-size:14px;font-weight:700;color:var(--ink);">'+c.first+' '+c.last+'</div>'
+      +(c.company?'<div style="font-size:11px;color:var(--teal-accent);font-weight:500;">🏢 '+c.company+(sameCompany?' <span style=\'font-size:10px;background:var(--teal-light);padding:1px 5px;border-radius:99px;\'>+'+( companyMap[c.company].length-1)+' contact'+(companyMap[c.company].length>2?'s':'')+'</span>':'')+'</div>':'')
+      +(c.profession?'<div style="font-size:11px;color:var(--ink-light);">'+c.profession+'</div>':'')
+      +'</div></div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">'
+      +'<span class="tag '+stageTagClass(stage)+'">'+stage+'</span>'
+      +entities.map(e=>'<span class="tag '+(e==='DKL'?'tag-dkl':e==='Refuge'?'tag-refuge':'tag-tpw')+'">'+e+'</span>').join('')
+      +(coCount?'<span class="tag" style="background:#f0f0ee;color:#666;">🔗 '+coCount+' co-investor'+(coCount>1?'s':'')+'</span>':'')
+      +'</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink-light);">'
+      +'<span>'+( c.assignee?userById(c.assignee).name.split(' ')[0]:'—')+'</span>'
+      +(totalAmt?'<span style="font-weight:700;color:var(--teal-dark);">'+fmt$(totalAmt)+'</span>':'')
+      +'</div>'
+      +'<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;">'
+      +'<span style="font-size:11px;color:var(--ink-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">'+(c.email||'')+'</span>'
+      +'<span class="pipe-item-days '+daysCls+'">'+days+'d ago</span>'
+      +'</div></div>';
   }).join(''):'<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">👥</div><div class="empty-title">No investors found</div><div class="empty-desc">Add your first investor or adjust filters</div></div>';
 }
 
@@ -1786,19 +2182,73 @@ function openContactDetail(id){
 
 function renderContactDetail(id){
   const c=S.contacts.find(x=>x.id===id);if(!c)return;
-  document.getElementById('cd-title').textContent=c.first+' '+c.last+(c.dnc?' 🚫':'');
-  const invs=S.investments.filter(x=>x.contactId===id);
+  document.getElementById('cd-title').textContent=c.first+' '+c.last+(c.dnc?' 🚫':'')+(c.company?' — '+c.company:'');
+  const invs=S.investments.filter(x=>x.contactId===id&&!x.isProspectPlaceholder);
+  const allInvs=S.investments.filter(x=>x.contactId===id);
   const acts=S.activities.filter(x=>x.contactId===id);
   const tasks=S.tasks.filter(x=>x.contactId===id&&!x.done);
   const totalAmt=invs.reduce((s,i)=>s+(i.amount||0),0);
-  const ap=document.querySelector('#contact-detail-modal .tab-panel.active');
-  if(!ap)return;
+  const ap=document.querySelector('#contact-detail-modal .tab-panel.active');if(!ap)return;
+  const prospectInv=S.investments.find(i=>i.contactId===id&&i.isProspectPlaceholder);
+
   if(ap.id==='cd-tab-overview'){
-    document.getElementById('cd-overview').innerHTML='<div class="g2"><div><div class="detail-sec"><h4>Contact Info</h4><div class="fg-row"><div class="fg"><label>First Name</label><input id="cde-first" value="'+c.first+'"></div><div class="fg"><label>Last Name</label><input id="cde-last" value="'+c.last+'"></div></div><div class="fg-row"><div class="fg"><label>Email</label><input id="cde-email" value="'+(c.email||'')+'"></div><div class="fg"><label>Phone</label><input id="cde-phone" value="'+(c.phone||'')+'"></div></div><div class="fg"><label>Address</label><input id="cde-address" value="'+(c.address||'')+'"></div><div class="fg-row"><div class="fg"><label>Spouse / Partner</label><input id="cde-spouse" value="'+(c.spouse||'')+'"></div><div class="fg"><label>Spouse Email</label><input id="cde-spouseEmail" value="'+(c.spouseEmail||'')+'"></div></div><div class="fg-row"><div class="fg"><label>LinkedIn</label><input id="cde-linkedin" value="'+(c.linkedin||'')+'"></div><div class="fg"><label>Profession</label><input id="cde-profession" value="'+(c.profession||'')+'"></div></div></div></div><div><div class="detail-sec"><h4>Classification</h4><div class="fg-row"><div class="fg"><label>Fundraiser</label><select id="cde-assignee">'+USERS.filter(u=>u.role!=='admin').map(u=>'<option value="'+u.id+'"'+(c.assignee===u.id?' selected':'')+'>'+u.name+'</option>').join('')+'</select></div><div class="fg"><label>Entity Type</label><select id="cde-entityType"><option value="">Select...</option>'+['Individual','Trust','LLC','Corporation','IRA','401k','DAF','Other'].map(e=>'<option'+(c.entityType===e?' selected':'')+'>'+e+'</option>').join('')+'</select></div></div><div class="fg-row"><div class="fg"><label>Lead Source</label><select id="cde-leadSource"><option value="">Select...</option>'+['Referral','Networking Event','Cold Outreach','Existing Investor','Social Media','Website','Other'].map(s=>'<option'+(c.leadSource===s?' selected':'')+'>'+s+'</option>').join('')+'</select></div><div class="fg"><label>Referred By</label><input id="cde-referredBy" value="'+(c.referredBy||'')+'"></div></div><div class="fg-row"><div class="fg"><label>Warmth (1-5)</label><select id="cde-warmth">'+[1,2,3,4,5].map(n=>'<option value="'+n+'"'+(c.warmth===n?' selected':'')+'>'+n+'</option>').join('')+'</select></div><div class="fg"><label>Est. Capital</label><input id="cde-estCapital" type="number" value="'+(c.estCapital||0)+'"></div></div><div class="fg-row"><div class="fg"><label>Accredited?</label><select id="cde-accredited"><option value="">Unknown</option><option value="yes"'+(c.accredited==='yes'?' selected':'')+'>Yes — Verified</option><option value="pending"'+(c.accredited==='pending'?' selected':'')+'>Pending</option><option value="no"'+(c.accredited==='no'?' selected':'')+'>No</option></select></div><div class="fg"><label>Accred. Expiry</label><input id="cde-accredExpiry" type="date" value="'+(c.accredExpiry||'')+'"></div></div><div class="fg-row"><div class="fg"><label>KYC/AML</label><select id="cde-kyc"><option value="no"'+(c.kyc==='no'?' selected':'')+'>No</option><option value="yes"'+(c.kyc==='yes'?' selected':'')+'>Yes</option><option value="pending"'+(c.kyc==='pending'?' selected':'')+'>Pending</option></select></div><div class="fg"><label>Do Not Contact</label><select id="cde-dnc"><option value="no"'+(!c.dnc?' selected':'')+'>No</option><option value="yes"'+(c.dnc?' selected':'')+'>Yes — DNC</option></select></div></div></div><div class="detail-sec"><h4>Summary</h4><div class="dr"><span>Total Invested</span><span style="font-weight:700;color:var(--teal-dark);">'+fmt$(totalAmt)+'</span></div><div class="dr"><span>Investment Records</span><span>'+invs.length+'</span></div><div class="dr"><span>Last Contact</span><span>'+fmtDate(c.lastContact)+'</span></div><div class="dr"><span>Added</span><span>'+fmtDate(c.addedDate)+'</span></div></div><div class="fg"><label>Notes</label><textarea id="cde-notes" style="min-height:80px;">'+(c.notes||'')+'</textarea></div><div class="fg"><label>Language</label><input id="cde-language" value="'+(c.language||'English')+'"></div><div class="fg"><label>FINRA/SEC Notes</label><textarea id="cde-finraNotes" style="min-height:50px;">'+(c.finraNotes||'')+'</textarea></div></div></div>';
-  }else if(ap.id==='cd-tab-investments'){
-    document.getElementById('cd-investments').innerHTML=(invs.length?invs.map(inv=>'<div class="offering-card '+(inv.stage==='Active Investor'?'active-inv':inv.stage==='Committed'||inv.stage==='Onboarding'?'committed':'prospect')+'" onclick="openInvestmentDetail(\''+inv.id+'\')"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;"><div><div style="font-size:14px;font-weight:700;color:var(--ink);">'+inv.offering+'</div><div style="font-size:11px;color:var(--ink-light);">'+inv.entity+' · '+(inv.offering506||'—')+'</div></div><div style="text-align:right;"><div style="font-size:16px;font-weight:700;color:var(--teal-dark);">'+fmt$(inv.amount)+'</div><span class="tag '+stageTagClass(inv.stage)+'">'+inv.stage+'</span></div></div><div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-light);"><span>Circle: <strong>'+(inv.circle==='hard'?'🟢 Hard':'🔵 Soft')+'</strong></span><span>Sub: <strong>'+(inv.subStatus||'—')+'</strong></span>'+(inv.expDate?'<span>Expires: <strong>'+fmtDate(inv.expDate)+'</strong></span>':'')+'</div><div style="margin-top:8px;display:flex;gap:6px;">'+(STAGES.includes(inv.stage)&&inv.stage!=='Active Investor'?'<button class="btn btn-xs btn-primary" onclick="event.stopPropagation();advanceStage(\''+inv.id+'\')">Advance Stage →</button>':'')+'</div></div>').join(''):'')+'<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="openAddInvestmentForContact()">+ Add Investment Record</button>';
-  }else if(ap.id==='cd-tab-activity'){
-    const actIcons={call:'📞',email:'✉️',meeting:'🤝',note:'📝'};
+    // Co-investor options (other contacts)
+    const otherContacts=S.contacts.filter(x=>x.id!==id);
+    const coInvSelOpts=otherContacts.map(x=>'<option value="'+x.id+'"'+((c.coInvestors||[]).includes(x.id)?' selected':'')+'>'+x.first+' '+x.last+(x.company?' ('+x.company+')':'')+'</option>').join('');
+    document.getElementById('cd-overview').innerHTML='<div class="g2">'
+    +'<div>'
+    +'<div class="detail-sec"><h4>Contact Info</h4>'
+    +'<div class="fg-row"><div class="fg"><label>First Name</label><input id="cde-first" value="'+c.first+'"></div><div class="fg"><label>Last Name</label><input id="cde-last" value="'+c.last+'"></div></div>'
+    +'<div class="fg-row"><div class="fg"><label>Email</label><input id="cde-email" value="'+(c.email||'')+'"></div><div class="fg"><label>Phone</label><input id="cde-phone" value="'+(c.phone||'')+'" oninput="this.value=fmtPhone(this.value)"></div></div>'
+    +'<div class="fg"><label>Address</label><input id="cde-address" value="'+(c.address||'')+'"></div>'
+    +'<div class="fg"><label>Company / Organization</label><input id="cde-company" value="'+(c.company||'')+'" placeholder="e.g. Smith Family LLC, ABC Corp"></div>'
+    +'<div class="fg-row"><div class="fg"><label>Spouse / Partner</label><input id="cde-spouse" value="'+(c.spouse||'')+'"></div><div class="fg"><label>Spouse Email</label><input id="cde-spouseEmail" value="'+(c.spouseEmail||'')+'"></div></div>'
+    +'<div class="fg-row"><div class="fg"><label>LinkedIn</label><input id="cde-linkedin" value="'+(c.linkedin||'')+'"></div><div class="fg"><label>Profession</label><input id="cde-profession" value="'+(c.profession||'')+'"></div></div>'
+    +'</div>'
+    +'<div class="fg"><label>Co-Investors / Related Contacts</label><select id="cde-coinvestors" multiple style="min-height:80px;font-size:12px;"><option value="">— None —</option>'+coInvSelOpts+'</select><div style="font-size:11px;color:var(--ink-light);margin-top:3px;">Hold Ctrl/Cmd to select multiple</div></div>'
+    +((c.coInvestors&&c.coInvestors.length)?'<div class="detail-sec" style="margin-top:8px;"><h4>Linked Co-Investors</h4>'+c.coInvestors.map(coid=>{const co=S.contacts.find(x=>x.id===coid);return co?'<div class="dr" onclick="openContactDetail(\''+co.id+'\')" style="cursor:pointer;"><span>'+co.first+' '+co.last+(co.company?' ('+co.company+')':'')+'</span><span style="color:var(--teal-dark);">View →</span></div>':'';}).join('')+'</div>':'')
+    +'</div>'
+    +'<div>'
+    +'<div class="detail-sec"><h4>Classification</h4>'
+    +'<div class="fg-row"><div class="fg"><label>Fundraiser</label><select id="cde-assignee">'+USERS.filter(u=>u.role!=='admin').map(u=>'<option value="'+u.id+'"'+(c.assignee===u.id?' selected':'')+'>'+u.name+'</option>').join('')+'</select></div>'
+    +'<div class="fg"><label>Entity Type</label><select id="cde-entityType"><option value="">Select...</option>'+['Individual','Trust','LLC','Corporation','IRA','401k','DAF','Other'].map(e=>'<option'+(c.entityType===e?' selected':'')+'>'+e+'</option>').join('')+'</select></div></div>'
+    +'<div class="fg-row"><div class="fg"><label>Lead Source</label><select id="cde-leadSource"><option value="">Select...</option>'+['Referral','Networking Event','Cold Outreach','Existing Investor','Social Media','Website','Other'].map(s=>'<option'+(c.leadSource===s?' selected':'')+'>'+s+'</option>').join('')+'</select></div>'
+    +'<div class="fg"><label>Referred By</label><input id="cde-referredBy" value="'+(c.referredBy||'')+'"></div></div>'
+    +'<div class="fg-row"><div class="fg"><label>Warmth (1-5)</label><select id="cde-warmth">'+[1,2,3,4,5].map(n=>'<option value="'+n+'"'+(c.warmth===n?' selected':'')+'>'+n+'</option>').join('')+'</select></div>'
+    +'<div class="fg"><label>Est. Capital</label><input id="cde-estCapital" type="number" value="'+(c.estCapital||0)+'"></div></div>'
+    +'<div class="fg-row"><div class="fg"><label>Accredited?</label><select id="cde-accredited"><option value="">Unknown</option><option value="yes"'+(c.accredited==='yes'?' selected':'')+'>Yes</option><option value="pending"'+(c.accredited==='pending'?' selected':'')+'>Pending</option><option value="no"'+(c.accredited==='no'?' selected':'')+'>No</option></select></div>'
+    +'<div class="fg"><label>Accred. Expiry</label><input id="cde-accredExpiry" type="date" value="'+(c.accredExpiry||'')+'"></div></div>'
+    +'<div class="fg-row"><div class="fg"><label>KYC/AML</label><select id="cde-kyc"><option value="no"'+(c.kyc==='no'?' selected':'')+'>No</option><option value="yes"'+(c.kyc==='yes'?' selected':'')+'>Yes</option><option value="pending"'+(c.kyc==='pending'?' selected':'')+'>Pending</option></select></div>'
+    +'<div class="fg"><label>Do Not Contact</label><select id="cde-dnc"><option value="no"'+(!c.dnc?' selected':'')+'>No</option><option value="yes"'+(c.dnc?' selected':'')+'>Yes — DNC</option></select></div></div>'
+    +'</div>'
+    +'<div class="detail-sec"><h4>Summary</h4>'
+    +'<div class="dr"><span>Total Invested</span><span style="font-weight:700;color:var(--teal-dark);">'+fmt$(totalAmt)+'</span></div>'
+    +'<div class="dr"><span>Investment Records</span><span>'+invs.length+'</span></div>'
+    +'<div class="dr"><span>Last Contact</span><span>'+fmtDate(c.lastContact)+'</span></div>'
+    +'<div class="dr"><span>Added</span><span>'+fmtDate(c.addedDate)+'</span></div>'
+    +'</div>'
+    +'<div class="fg"><label>Notes</label><textarea id="cde-notes" style="min-height:70px;">'+(c.notes||'')+'</textarea></div>'
+    +'<div class="fg"><label>Language</label><input id="cde-language" value="'+(c.language||'English')+'"></div>'
+    +'<div class="fg"><label>FINRA/SEC Notes</label><textarea id="cde-finraNotes" style="min-height:50px;">'+(c.finraNotes||'')+'</textarea></div>'
+    +'</div></div>';
+  } else if(ap.id==='cd-tab-investments'){
+    const prospectSection=prospectInv?'<div class="alert-box alert-teal" style="margin-bottom:12px;">🎯 This investor is in the <strong>Prospect</strong> stage. Add an investment record below to begin tracking a specific offering, or advance the stage directly.<div style="margin-top:8px;display:flex;gap:6px;"><button class="btn btn-xs btn-primary" onclick="advanceStage(\''+prospectInv.id+'\')">Advance Stage →</button></div></div>':'';
+    document.getElementById('cd-investments').innerHTML=prospectSection
+      +(invs.length?invs.map(inv=>'<div class="offering-card '+(inv.stage==='Active Investor'?'active-inv':inv.stage==='Committed'||inv.stage==='Onboarding'?'committed':'prospect')+'" onclick="openInvestmentDetail(\''+inv.id+'\')">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">'
+      +'<div><div style="font-size:14px;font-weight:700;color:var(--ink);">'+inv.offering+'</div><div style="font-size:11px;color:var(--ink-light);">'+inv.entity+' · '+(inv.offering506||'—')+'</div></div>'
+      +'<div style="text-align:right;"><div style="font-size:16px;font-weight:700;color:var(--teal-dark);">'+fmt$(inv.amount)+'</div><span class="tag '+stageTagClass(inv.stage)+'">'+inv.stage+'</span></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-light);">'
+      +'<span>Circle: <strong>'+(inv.circle==='hard'?'🟢 Hard':'🔵 Soft')+'</strong></span>'
+      +'<span>Sub: <strong>'+(inv.subStatus||'—')+'</strong></span>'
+      +(inv.expDate?'<span>Expires: <strong>'+fmtDate(inv.expDate)+'</strong></span>':'')
+      +'</div>'
+      +'<div style="margin-top:8px;display:flex;gap:6px;">'
+      +(STAGES.includes(inv.stage)&&inv.stage!=='Active Investor'?'<button class="btn btn-xs btn-primary" onclick="event.stopPropagation();advanceStage(\''+inv.id+'\')">Advance Stage →</button>':'')
+      +'</div></div>').join(''):'')
+      +'<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="openAddInvestmentForContact()">+ Add Investment Record</button>';
+  } else if(ap.id==='cd-tab-activity'){
     const tmplOptions=S.templates.map(t=>'<option value="'+t.id+'">'+t.name+'</option>').join('');
     document.getElementById('cd-activity').innerHTML=
       '<div style="margin-bottom:14px;">'
@@ -1812,35 +2262,59 @@ function renderContactDetail(id){
       +'<span style="font-size:12px;font-weight:600;color:var(--orange-dk);white-space:nowrap;">✉️ Send Template:</span>'
       +'<select id="cd-tmpl-select" style="flex:1;font-size:12px;padding:5px 8px;border-radius:var(--r);border:1px solid var(--rule2);"><option value="">Choose a template…</option>'+tmplOptions+'</select>'
       +'<button class="btn btn-xs btn-orange" onclick="(function(){const sel=document.getElementById(\'cd-tmpl-select\').value;if(!sel){showToast(\'Please choose a template first\');return;}openInGmail(sel,\''+id+'\');})()">Open in Gmail →</button>'
-      +'</div>'
-      +'</div>'
-      +(acts.length?acts.map(a=>'<div class="activity-item"><div class="act-icon act-'+a.type+'">'+(actIcons[a.type]||'📌')+'</div><div class="act-body"><div class="act-desc">'+a.notes+'</div><div class="act-meta">'+userById(a.user).name+' · '+fmtDate(a.date)+'</div></div></div>').join(''):'<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No activity yet</div></div>');
-  }else if(ap.id==='cd-tab-compliance'){
+      +'</div></div>'
+      +(acts.length?acts.map(a=>{const u=userById(a.user);const icons={call:'📞',email:'✉️',meeting:'🤝',note:'📝'};return'<div class="activity-item"><div class="act-icon act-'+a.type+'">'+(icons[a.type]||'📌')+'</div><div class="act-body"><div class="act-desc">'+a.notes+'</div><div class="act-meta">'+u.name+' · '+fmtDate(a.date)+'</div></div></div>';}).join(''):'<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No activity yet</div></div>');
+  } else if(ap.id==='cd-tab-compliance'){
     document.getElementById('cd-compliance').innerHTML='<div class="detail-sec"><h4>Compliance Status</h4><div class="dr"><span>Accredited?</span><span><span class="comp-badge '+(c.accredited==='yes'?'comp-ok':c.accredited==='pending'?'comp-warn':'comp-bad')+'">'+(c.accredited==='yes'?'✓ Verified':c.accredited==='pending'?'⏳ Pending':'✗ No')+'</span></span></div><div class="dr"><span>Accred. Expiry</span><span>'+(c.accredExpiry?fmtDate(c.accredExpiry):'—')+'</span></div><div class="dr"><span>KYC/AML</span><span><span class="comp-badge '+(c.kyc==='yes'?'comp-ok':c.kyc==='pending'?'comp-warn':'comp-bad')+'">'+(c.kyc==='yes'?'✓ Complete':c.kyc==='pending'?'⏳ Pending':'✗ Incomplete')+'</span></span></div><div class="dr"><span>DNC</span><span>'+(c.dnc?'<span class="dnc-badge">DNC</span>':'Clear')+'</span></div></div>'+invs.map(inv=>'<div style="border:1px solid var(--rule);border-radius:var(--r);padding:10px;margin-bottom:8px;"><div style="font-weight:600;margin-bottom:6px;">'+inv.offering+' — '+inv.entity+'</div><div class="dr"><span>Type</span><span>'+(inv.offering506||'—')+'</span></div><div class="dr"><span>PPM</span><span>'+(inv.ppmVersion||'—')+'</span></div><div class="dr"><span>Subscription</span><span><span class="comp-badge '+(inv.subStatus==='countersigned'||inv.subStatus==='signed'?'comp-ok':inv.subStatus==='sent'?'comp-warn':'comp-bad')+'">'+(inv.subStatus||'Unsent')+'</span></span></div></div>').join('');
-  }else if(ap.id==='cd-tab-tasks'){
-    const taskIcons={call:'📞',email:'✉️',meeting:'🤝','follow-up':'🔔',admin:'📋',other:'📌'};
-    document.getElementById('cd-tasks').innerHTML='<div style="margin-bottom:12px;"><button class="btn btn-sm btn-primary" onclick="document.getElementById(\'task-contact-inp\').value=\''+id+'\';openModal(\'add-task-modal\')">+ Add Task</button></div>'+(tasks.length?tasks.map(t=>{const cls=taskDueClass(t.due,t.done);return'<div class="task-row"><div class="tcb '+(t.done?'done':'')+'" onclick="toggleTask(\''+t.id+'\')">'+(t.done?'✓':'')+'</div><div class="task-info"><div class="task-title '+(t.done?'done-txt':'')+'">'+(taskIcons[t.type]||'📌')+' '+t.title+'</div><div class="task-meta">'+(t.due?'<span class="task-due '+cls+'">'+fmtDate(t.due)+'</span>':'')+'<span>'+userById(t.assignee||S.currentUser).name+'</span></div></div></div>';}).join(''):'<div class="empty" style="padding:20px;"><div class="empty-desc">No open tasks</div></div>');
+  } else if(ap.id==='cd-tab-tasks'){
+    document.getElementById('cd-tasks').innerHTML='<div style="margin-bottom:12px;"><button class="btn btn-sm btn-primary" onclick="document.getElementById(\'task-contact-inp\').value=\''+id+'\';openModal(\'add-task-modal\')">+ Add Task</button></div>'+(tasks.length?tasks.map(t=>{const cls=taskDueClass(t.due,t.done);const icons={call:'📞',email:'✉️',meeting:'🤝','follow-up':'🔔',admin:'📋',other:'📌'};return'<div class="task-row"><div class="tcb '+(t.done?'done':'')+'" onclick="toggleTask(\''+t.id+'\')">'+(t.done?'✓':'')+'</div><div class="task-info"><div class="task-title '+(t.done?'done-txt':'')+'\">'+(icons[t.type]||'📌')+' '+t.title+'</div><div class="task-meta">'+(t.due?'<span class="task-due '+cls+'">'+fmtDate(t.due)+'</span>':'')+'<span>'+userById(t.assignee||S.currentUser).name+'</span></div></div></div>';}).join(''):'<div class="empty" style="padding:20px;"><div class="empty-desc">No open tasks</div></div>');
   }
 }
 </script><script>
+// ═══════════════════════════════════════════════════════════
 // PIPELINE
+// ═══════════════════════════════════════════════════════════
 function renderPipeline(){
-  const offeringF=document.getElementById('pipe-offering')&&document.getElementById('pipe-offering').value||'';
-  const entityF=document.getElementById('pipe-entity')&&document.getElementById('pipe-entity').value||'';
-  const fundraiserF=document.getElementById('pipe-fundraiser')&&document.getElementById('pipe-fundraiser').value||'';
+  const offeringF=(document.getElementById('pipe-offering')&&document.getElementById('pipe-offering').value)||'';
+  const entityF=(document.getElementById('pipe-entity')&&document.getElementById('pipe-entity').value)||'';
+  const fundraiserF=(document.getElementById('pipe-fundraiser')&&document.getElementById('pipe-fundraiser').value)||'';
   const pfd=document.getElementById('pipe-fundraiser');
   if(pfd&&pfd.options.length<=1){USERS.filter(u=>u.role!=='admin').forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.name;pfd.appendChild(o);});}
-  let invs=S.investments.filter(i=>STAGES.includes(i.stage));
-  if(offeringF)invs=invs.filter(i=>i.offering===offeringF);
-  if(entityF)invs=invs.filter(i=>i.entity===entityF);
+  let invs=visibleInvestments().filter(i=>STAGES.includes(i.stage));
+  if(offeringF&&offeringF!=='Prospect')invs=invs.filter(i=>i.offering===offeringF||i.isProspectPlaceholder);
+  if(entityF)invs=invs.filter(i=>i.entity===entityF||i.isProspectPlaceholder);
   if(fundraiserF)invs=invs.filter(i=>{const c=S.contacts.find(x=>x.id===i.contactId);return c&&c.assignee===fundraiserF;});
-  const total=invs.reduce((s,i)=>s+(i.amount||0),0);
-  document.getElementById('pipe-summary').textContent=invs.length+' records · Pipeline value: '+fmt$(total);
+  const realTotal=invs.filter(i=>!i.isProspectPlaceholder).reduce((s,i)=>s+(i.amount||0),0);
+  document.getElementById('pipe-summary').textContent=invs.length+' records · Pipeline value: '+fmt$(realTotal);
   const hot=S.settings.radarHot||14;const warm=S.settings.radarWarm||7;
   document.getElementById('pipe-board').innerHTML=STAGES.map(stage=>{
     const items=invs.filter(i=>i.stage===stage);
-    const colVal=items.reduce((s,i)=>s+(i.amount||0),0);
-    return'<div class="pipe-col" data-stage="'+stage+'" ondragover="pipeDragOver(event)" ondrop="pipeDrop(event,\''+stage+'\')" ondragleave="this.classList.remove(\'drag-over\')"><div class="pipe-col-hdr"><span class="pipe-col-name">'+stage+'</span><span class="pipe-col-count">'+items.length+'</span></div><div class="pipe-col-body">'+items.map(inv=>{const c=S.contacts.find(x=>x.id===inv.contactId);const days=daysAgo(c&&c.lastContact||today());const daysCls=days>=hot?'days-hot':days>=warm?'days-warm':'days-ok';const off=offeringById(inv.offering);return'<div class="pipe-item" draggable="true" data-inv-id="'+inv.id+'" ondragstart="pipeDragStart(event,\''+inv.id+'\')" onclick="openContactDetail(\''+inv.contactId+'\')"><div class="pipe-item-name">'+(c?c.first+' '+c.last:'Unknown')+'</div><div class="pipe-item-offering" style="color:'+off.color+';">'+inv.offering+' · '+inv.entity+'</div><div class="pipe-item-amount">'+fmt$(inv.amount)+'</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><span class="tag '+(inv.circle==='hard'?'tag-hard':'tag-soft')+'">'+(inv.circle==='hard'?'Hard':'Soft')+'</span><span class="pipe-item-days '+daysCls+'">'+days+'d</span></div><div style="margin-top:6px;"><button class="btn btn-xs btn-primary" onclick="event.stopPropagation();advanceStage(\''+inv.id+'\')">Advance →</button></div></div>';}).join('')+'</div><div class="pipe-col-footer"><span class="pipe-col-total">'+fmt$(colVal)+'</span></div></div>';
+    const colVal=items.filter(i=>!i.isProspectPlaceholder).reduce((s,i)=>s+(i.amount||0),0);
+    return'<div class="pipe-col" data-stage="'+stage+'" ondragover="pipeDragOver(event)" ondrop="pipeDrop(event,\''+stage+'\')" ondragleave="this.classList.remove(\'drag-over\')">'
+      +'<div class="pipe-col-hdr"><span class="pipe-col-name">'+stage+'</span><span class="pipe-col-count">'+items.length+'</span></div>'
+      +'<div class="pipe-col-body">'
+      +items.map(inv=>{
+        const c=S.contacts.find(x=>x.id===inv.contactId);
+        const days=daysAgo(c&&c.lastContact||today());
+        const daysCls=days>=hot?'days-hot':days>=warm?'days-warm':'days-ok';
+        const off=offeringById(inv.offering);
+        const isProsp=inv.isProspectPlaceholder;
+        return'<div class="pipe-item" draggable="true" data-inv-id="'+inv.id+'" ondragstart="pipeDragStart(event,\''+inv.id+'\')" onclick="openContactDetail(\''+inv.contactId+'\')">'
+          +'<div class="pipe-item-name">'+(c?c.first+' '+c.last:'Unknown')+'</div>'
+          +(c&&c.company?'<div style="font-size:10px;color:var(--teal-accent);margin-bottom:2px;">🏢 '+c.company+'</div>':'')
+          +(isProsp?'<div class="pipe-item-offering" style="color:var(--ink-light);font-style:italic;">No offering yet</div>':'<div class="pipe-item-offering" style="color:'+off.color+';">'+inv.offering+' · '+inv.entity+'</div>')
+          +(isProsp?'<div style="font-size:11px;color:var(--ink-light);">Prospect — add investment to track offering</div>':'<div class="pipe-item-amount">'+fmt$(inv.amount)+'</div>')
+          +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">'
+          +(isProsp?'<span class="tag tag-prospect">Prospect</span>':'<span class="tag '+(inv.circle==='hard'?'tag-hard':'tag-soft')+'">'+(inv.circle==='hard'?'Hard':'Soft')+'</span>')
+          +'<span class="pipe-item-days '+daysCls+'">'+days+'d</span>'
+          +'</div>'
+          +'<div style="margin-top:6px;">'
+          +(stage!=='Active Investor'?'<button class="btn btn-xs btn-primary" onclick="event.stopPropagation();advanceStage(\''+inv.id+'\')">Advance →</button>':'')
+          +'</div></div>';
+      }).join('')
+      +'</div>'
+      +'<div class="pipe-col-footer"><span class="pipe-col-total">'+(colVal?fmt$(colVal):'—')+'</span></div>'
+      +'</div>';
   }).join('');
 }
 let _dragInvId=null;
@@ -1854,27 +2328,30 @@ function pipeDrop(e,stage){
   const from=inv.stage;inv.stage=stage;
   if(!inv.stageHistory)inv.stageHistory=[];
   inv.stageHistory.push({stage,date:today(),user:S.currentUser});
-  logActivity({contactId:inv.contactId,type:'note',notes:'Stage changed (drag): '+from+' → '+stage+' ('+inv.offering+')',date:today(),user:S.currentUser});
+  if(inv.isProspectPlaceholder&&stage!=='Prospect')inv.isProspectPlaceholder=false;
+  logActivity({contactId:inv.contactId,type:'note',notes:'Stage changed (drag): '+from+' → '+stage+' ('+(inv.isProspectPlaceholder?'General':inv.offering)+')',date:today(),user:S.currentUser});
   const c=S.contacts.find(x=>x.id===inv.contactId);if(c)c.lastContact=today();
   autoCreateFollowupTask(inv.contactId,stage,inv.id);
-  saveState();renderPipeline();renderDashboard();_dragInvId=null;
-  showToast('Moved to '+stage);
+  saveState();renderPipeline();renderDashboard();_dragInvId=null;showToast('Moved to '+stage);
 }
 
-// INVESTMENTS TABLE
+// ── INVESTMENTS TABLE ─────────────────────────────────────────
 function renderInvestments(){
-  const search=document.getElementById('inv-search')&&document.getElementById('inv-search').value.toLowerCase()||'';
-  const offeringF=document.getElementById('inv-offering')&&document.getElementById('inv-offering').value||'';
-  const entityF=document.getElementById('inv-entity')&&document.getElementById('inv-entity').value||'';
-  const stageF=document.getElementById('inv-stage')&&document.getElementById('inv-stage').value||'';
-  let list=S.investments.filter(i=>{
+  const search=(document.getElementById('inv-search')&&document.getElementById('inv-search').value.toLowerCase())||'';
+  const offeringF=(document.getElementById('inv-offering')&&document.getElementById('inv-offering').value)||'';
+  const entityF=(document.getElementById('inv-entity')&&document.getElementById('inv-entity').value)||'';
+  const stageF=(document.getElementById('inv-stage')&&document.getElementById('inv-stage').value)||'';
+  let list=visibleInvestments().filter(i=>!i.isProspectPlaceholder).filter(i=>{
     const c=S.contacts.find(x=>x.id===i.contactId);
     if(search&&!((c?c.first+' '+c.last:'')+i.offering).toLowerCase().includes(search))return false;
     if(offeringF&&i.offering!==offeringF)return false;
     if(entityF&&i.entity!==entityF)return false;
     if(stageF&&i.stage!==stageF)return false;return true;
   });
-  document.getElementById('investments-table').innerHTML=list.length?'<table class="exp-table" style="width:100%;"><thead><tr><th>Investor</th><th>Offering</th><th>Entity</th><th>Stage</th><th>Amount</th><th>Circle</th><th>Sub Status</th><th>Expires</th><th></th></tr></thead><tbody>'+list.map(inv=>{const c=S.contacts.find(x=>x.id===inv.contactId);const off=offeringById(inv.offering);return'<tr onclick="openInvestmentDetail(\''+inv.id+'\')" style="cursor:pointer;"><td style="font-weight:600;">'+(c?c.first+' '+c.last:'—')+'</td><td><span class="tag" style="background:'+off.color+'22;color:'+off.color+';">'+inv.offering+'</span></td><td><span class="tag '+(inv.entity==='DKL'?'tag-dkl':inv.entity==='Refuge'?'tag-refuge':'tag-tpw')+'">'+inv.entity+'</span></td><td><span class="tag '+stageTagClass(inv.stage)+'">'+inv.stage+'</span></td><td style="font-weight:700;color:var(--teal-dark);">'+fmt$(inv.amount)+'</td><td><span class="tag '+(inv.circle==='hard'?'tag-hard':'tag-soft')+'">'+(inv.circle==='hard'?'Hard':'Soft')+'</span></td><td>'+(inv.subStatus||'—')+'</td><td>'+(inv.expDate?fmtDate(inv.expDate):'—')+'</td><td onclick="event.stopPropagation();">'+(STAGES.includes(inv.stage)&&inv.stage!=='Active Investor'?'<button class="btn btn-xs btn-primary" onclick="advanceStage(\''+inv.id+'\')">Advance →</button>':'')+'</td></tr>';}).join('')+'</tbody></table>':'<div class="empty"><div class="empty-icon">💼</div><div class="empty-title">No investment records found</div></div>';
+  document.getElementById('investments-table').innerHTML=list.length?'<table class="exp-table" style="width:100%;"><thead><tr><th>Investor</th><th>Company</th><th>Offering</th><th>Entity</th><th>Stage</th><th>Amount</th><th>Sub Status</th><th>Expires</th><th></th></tr></thead><tbody>'+list.map(inv=>{
+    const c=S.contacts.find(x=>x.id===inv.contactId);const off=offeringById(inv.offering);
+    return'<tr onclick="openInvestmentDetail(\''+inv.id+'\')" style="cursor:pointer;"><td style="font-weight:600;">'+(c?c.first+' '+c.last:'—')+'</td><td style="font-size:11px;color:var(--ink-light);">'+(c&&c.company?c.company:'—')+'</td><td><span class="tag" style="background:'+off.color+'22;color:'+off.color+';">'+inv.offering+'</span></td><td><span class="tag '+(inv.entity==='DKL'?'tag-dkl':inv.entity==='Refuge'?'tag-refuge':'tag-tpw')+'">'+inv.entity+'</span></td><td><span class="tag '+stageTagClass(inv.stage)+'">'+inv.stage+'</span></td><td style="font-weight:700;color:var(--teal-dark);">'+fmt$(inv.amount)+'</td><td>'+(inv.subStatus||'—')+'</td><td>'+(inv.expDate?fmtDate(inv.expDate):'—')+'</td><td onclick="event.stopPropagation();">'+(STAGES.includes(inv.stage)&&inv.stage!=='Active Investor'?'<button class="btn btn-xs btn-primary" onclick="advanceStage(\''+inv.id+'\')">Advance →</button>':'')+'</td></tr>';
+  }).join('')+'</tbody></table>':'<div class="empty"><div class="empty-icon">💼</div><div class="empty-title">No investment records found</div></div>';
 }
 
 function openInvestmentDetail(id){S._viewingInvestment=id;renderInvestmentDetail(id);openModal('investment-detail-modal');}
@@ -1882,17 +2359,19 @@ function renderInvestmentDetail(id){
   const inv=S.investments.find(x=>x.id===id);if(!inv)return;
   const c=S.contacts.find(x=>x.id===inv.contactId);
   document.getElementById('invd-title').textContent=inv.offering+' — '+(c?c.first+' '+c.last:'');
-  document.getElementById('invd-content').innerHTML='<div class="progress-steps" style="margin-bottom:20px;">'+STAGES.map((st,i)=>{const cur=STAGES.indexOf(inv.stage);const done=i<cur;const active=i===cur;return'<div class="ps-step '+(done?'done':active?'active':'')+'" style="flex:1;display:flex;flex-direction:column;align-items:center;position:relative;">'+(i>0?'<div style="position:absolute;top:12px;left:-50%;width:100%;height:2px;background:'+(done||active?'var(--teal-dark)':'var(--rule)')+'"></div>':'')+'<div class="ps-circle">'+(done?'✓':i+1)+'</div><div class="ps-label">'+st+'</div></div>';}).join('')+'</div><div class="fg-row"><div class="fg"><label>Entity</label><select id="invde-entity">'+['DKL','Refuge','TPW'].map(e=>'<option'+(inv.entity===e?' selected':'')+'>'+e+'</option>').join('')+'</select></div><div class="fg"><label>Offering</label><select id="invde-offering">'+OFFERINGS.map(o=>'<option'+(inv.offering===o.id?' selected':'')+'>'+o.id+'</option>').join('')+'</select></div></div><div class="fg-row"><div class="fg"><label>Stage</label><select id="invde-stage">'+ALL_STAGES.map(s=>'<option'+(inv.stage===s?' selected':'')+'>'+s+'</option>').join('')+'</select></div><div class="fg"><label>Circle</label><select id="invde-circle"><option value="soft"'+(inv.circle==='soft'?' selected':'')+'>Soft Circle</option><option value="hard"'+(inv.circle==='hard'?' selected':'')+'>Hard Circle</option></select></div></div><div class="fg-row"><div class="fg"><label>Amount ($)</label><input id="invde-amount" type="number" value="'+(inv.amount||0)+'"></div><div class="fg"><label>Offering Type</label><select id="invde-offering506"><option value="">—</option><option value="506b"'+(inv.offering506==='506b'?' selected':'')+'>506(b)</option><option value="506c"'+(inv.offering506==='506c'?' selected':'')+'>506(c)</option></select></div></div>'+(inv.offering==='Flat Interest'?'<div class="fg-row"><div class="fg"><label>Interest Rate (%)</label><input id="invde-flatRate" value="'+(inv.flatRate||'')+'"></div><div class="fg"><label>Term Length</label><input id="invde-flatTerm" value="'+(inv.flatTerm||'')+'"></div></div>':'<input id="invde-flatRate" type="hidden" value="'+(inv.flatRate||'')+'"><input id="invde-flatTerm" type="hidden" value="'+(inv.flatTerm||'')+'">')+'<div class="fg-row"><div class="fg"><label>Start Date</label><input id="invde-startDate" type="date" value="'+(inv.startDate||'')+'"></div><div class="fg"><label>Expiration Date</label><input id="invde-expDate" type="date" value="'+(inv.expDate||'')+'"></div></div><div class="fg-row"><div class="fg"><label>Capital Call Date</label><input id="invde-capitalCallDate" type="date" value="'+(inv.capitalCallDate||'')+'"></div><div class="fg"><label>PPM Version</label><input id="invde-ppmVersion" value="'+(inv.ppmVersion||'')+'"></div></div><div class="fg"><label>Subscription Agreement</label><select id="invde-subStatus">'+['unsent','sent','signed','countersigned'].map(s=>'<option'+(inv.subStatus===s?' selected':'')+'>'+s+'</option>').join('')+'</select></div><div class="fg"><label>Notes</label><textarea id="invde-notes" style="min-height:70px;">'+(inv.notes||'')+'</textarea></div><div class="detail-sec" style="margin-top:12px;"><h4>Stage History</h4>'+((inv.stageHistory||[]).map(h=>'<div class="dr"><span>'+h.stage+'</span><span>'+userById(h.user).name+' · '+fmtDate(h.date)+(h.note?' — '+h.note:'')+'</span></div>').join('')||'<div style="font-size:12px;color:var(--ink-light);">No history</div>')+'</div>'+(STAGES.includes(inv.stage)&&inv.stage!=='Active Investor'?'<div style="margin-top:12px;"><button class="btn btn-primary btn-sm" onclick="advanceStage(\''+inv.id+'\')">Advance to '+STAGES[STAGES.indexOf(inv.stage)+1]+' →</button></div>':'');
+  document.getElementById('invd-content').innerHTML='<div class="progress-steps" style="margin-bottom:20px;">'+STAGES.map((st,i)=>{const cur=STAGES.indexOf(inv.stage);const done=i<cur;const active=i===cur;return'<div class="ps-step '+(done?'done':active?'active':'')+'" style="flex:1;display:flex;flex-direction:column;align-items:center;position:relative;">'+(i>0?'<div style="position:absolute;top:12px;left:-50%;width:100%;height:2px;background:'+(done||active?'var(--teal-dark)':'var(--rule)')+'"></div>':'')+'<div class="ps-circle">'+(done?'✓':i+1)+'</div><div class="ps-label">'+st+'</div></div>';}).join('')+'</div><div class="fg-row"><div class="fg"><label>Entity</label><select id="invde-entity">'+['DKL','Refuge','TPW'].map(e=>'<option'+(inv.entity===e?' selected':'')+'>'+e+'</option>').join('')+'</select></div><div class="fg"><label>Offering</label><select id="invde-offering">'+OFFERINGS.map(o=>'<option'+(inv.offering===o.id?' selected':'')+'>'+o.id+'</option>').join('')+'</select></div></div><div class="fg-row"><div class="fg"><label>Stage</label><select id="invde-stage">'+ALL_STAGES.map(s=>'<option'+(inv.stage===s?' selected':'')+'>'+s+'</option>').join('')+'</select></div><div class="fg"><label>Circle</label><select id="invde-circle"><option value="soft"'+(inv.circle==='soft'?' selected':'')+'>Soft Circle</option><option value="hard"'+(inv.circle==='hard'?' selected':'')+'>Hard Circle</option></select></div></div><div class="fg-row"><div class="fg"><label>Amount ($)</label><input id="invde-amount" type="number" value="'+(inv.amount||0)+'"></div><div class="fg"><label>Offering Type</label><select id="invde-offering506"><option value="">—</option><option value="506b"'+(inv.offering506==='506b'?' selected':'')+'>506(b)</option><option value="506c"'+(inv.offering506==='506c'?' selected':'')+'>506(c)</option></select></div></div><div class="fg-row"><div class="fg"><label>Start Date</label><input id="invde-startDate" type="date" value="'+(inv.startDate||'')+'"></div><div class="fg"><label>Expiration Date</label><input id="invde-expDate" type="date" value="'+(inv.expDate||'')+'"></div></div><div class="fg-row"><div class="fg"><label>Capital Call Date</label><input id="invde-capitalCallDate" type="date" value="'+(inv.capitalCallDate||'')+'"></div><div class="fg"><label>PPM Version</label><input id="invde-ppmVersion" value="'+(inv.ppmVersion||'')+'"></div></div><div class="fg-row"><div class="fg"><label>Flat Rate (%)</label><input id="invde-flatRate" value="'+(inv.flatRate||'')+'"></div><div class="fg"><label>Flat Term</label><input id="invde-flatTerm" value="'+(inv.flatTerm||'')+'"></div></div><div class="fg"><label>Subscription Agreement</label><select id="invde-subStatus">'+['unsent','sent','signed','countersigned'].map(s=>'<option'+(inv.subStatus===s?' selected':'')+'>'+s+'</option>').join('')+'</select></div><div class="fg"><label>Notes</label><textarea id="invde-notes" style="min-height:70px;">'+(inv.notes||'')+'</textarea></div><div class="detail-sec" style="margin-top:12px;"><h4>Stage History</h4>'+((inv.stageHistory||[]).map(h=>'<div class="dr"><span>'+h.stage+'</span><span>'+userById(h.user).name+' · '+fmtDate(h.date)+(h.note?' — '+h.note:'')+'</span></div>').join('')||'<div style="font-size:12px;color:var(--ink-light);">No history</div>')+'</div>'+(STAGES.includes(inv.stage)&&inv.stage!=='Active Investor'?'<div style="margin-top:12px;"><button class="btn btn-primary btn-sm" onclick="advanceStage(\''+inv.id+'\')">Advance to '+STAGES[STAGES.indexOf(inv.stage)+1]+' →</button></div>':'');
 }
 
-// TASKS RENDER
+// ── TASKS ─────────────────────────────────────────────────────
 function renderTasks(){
   populateUserSelects();
-  const filter=document.getElementById('task-filter')&&document.getElementById('task-filter').value||'all';
-  const assigneeF=document.getElementById('task-assignee')&&document.getElementById('task-assignee').value||'';
+  const filter=(document.getElementById('task-filter')&&document.getElementById('task-filter').value)||'all';
+  const assigneeF=(document.getElementById('task-assignee')&&document.getElementById('task-assignee').value)||'';
   const sel=document.getElementById('task-assignee');
   if(sel&&sel.options.length<=1){USERS.forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.name;sel.appendChild(o);});}
+  // Fundraisers only see their own tasks
   let list=S.tasks.filter(t=>{
+    if(isFundraiser()&&t.assignee&&t.assignee!==S.currentUser)return false;
     if(filter==='my'&&t.assignee!==S.currentUser)return false;
     if(filter==='overdue'&&(t.done||!t.due||daysUntil(t.due)>=0))return false;
     if(filter==='today'&&(t.done||!t.due||daysUntil(t.due)!==0))return false;
@@ -1904,11 +2383,11 @@ function renderTasks(){
   const icons={call:'📞',email:'✉️',meeting:'🤝','follow-up':'🔔',admin:'📋',other:'📌'};
   document.getElementById('tasks-list').innerHTML=list.length?list.map(t=>{
     const c=S.contacts.find(x=>x.id===t.contactId);const cls=taskDueClass(t.due,t.done);
-    return'<div class="task-row"><div class="tcb '+(t.done?'done':'')+'" onclick="toggleTask(\''+t.id+'\')">'+(t.done?'✓':'')+'</div><div class="task-info"><div class="task-title '+(t.done?'done-txt':'')+'">'+(icons[t.type]||'📌')+' '+t.title+'</div><div class="task-meta">'+(t.due?'<span class="task-due '+cls+'">'+fmtDate(t.due)+'</span>':'')+(c?'<span style="cursor:pointer;color:var(--teal-dark);" onclick="openContactDetail(\''+c.id+'\')">'+c.first+' '+c.last+'</span>':'')+'<span>'+userById(t.assignee||S.currentUser).name+'</span>'+(t.autoGenerated?'<span style="font-size:10px;color:var(--ink-light);">Auto</span>':'')+'</div>'+(t.notes?'<div style="font-size:12px;color:var(--ink-light);margin-top:2px;">'+t.notes+'</div>':'')+'</div><button class="btn btn-xs btn-ghost btn-danger" onclick="S.tasks=S.tasks.filter(x=>x.id!==\''+t.id+'\');saveState();renderTasks();updateBadges();">✕</button></div>';
+    return'<div class="task-row"><div class="tcb '+(t.done?'done':'')+'" onclick="toggleTask(\''+t.id+'\')">'+(t.done?'✓':'')+'</div><div class="task-info"><div class="task-title '+(t.done?'done-txt':'')+'\">'+(icons[t.type]||'📌')+' '+t.title+'</div><div class="task-meta">'+(t.due?'<span class="task-due '+cls+'">'+fmtDate(t.due)+'</span>':'')+(c?'<span style="cursor:pointer;color:var(--teal-dark);" onclick="openContactDetail(\''+c.id+'\')">'+c.first+' '+c.last+'</span>':'')+'<span>'+userById(t.assignee||S.currentUser).name+'</span>'+(t.autoGenerated?'<span style="font-size:10px;color:var(--ink-light);">Auto</span>':'')+'</div>'+(t.notes?'<div style="font-size:12px;color:var(--ink-light);margin-top:2px;">'+t.notes+'</div>':'')+'</div><button class="btn btn-xs btn-ghost btn-danger" onclick="S.tasks=S.tasks.filter(x=>x.id!==\''+t.id+'\');saveState();renderTasks();updateBadges();">✕</button></div>';
   }).join(''):'<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">No tasks here</div><div class="empty-desc">You\'re all caught up!</div></div>';
 }
 
-// CALENDAR
+// ── CALENDAR ─────────────────────────────────────────────────
 let _calYear=new Date().getFullYear(),_calMonth=new Date().getMonth();
 function calPrev(){_calMonth--;if(_calMonth<0){_calMonth=11;_calYear--;}renderCalendar();}
 function calNext(){_calMonth++;if(_calMonth>11){_calMonth=0;_calYear++;}renderCalendar();}
@@ -1926,41 +2405,44 @@ function renderCalendar(){
   }
   document.getElementById('cal-grid').innerHTML=html;
 }
-function calDrop(e,ds){
-  e.preventDefault();const taskId=e.dataTransfer.getData('taskId');if(!taskId)return;
-  const t=S.tasks.find(x=>x.id===taskId);if(!t)return;
-  t.due=ds;saveState();renderCalendar();renderTasks();updateBadges();showToast('Task rescheduled to '+fmtDate(ds));
-}
+function calDrop(e,ds){e.preventDefault();const tid=e.dataTransfer.getData('taskId');if(!tid)return;const t=S.tasks.find(x=>x.id===tid);if(!t)return;t.due=ds;saveState();renderCalendar();renderTasks();updateBadges();showToast('Task rescheduled to '+fmtDate(ds));}
 
-// RADAR
+// ── RADAR ─────────────────────────────────────────────────────
 function renderRadar(){
   const hot=S.settings.radarHot||14;const warm=S.settings.radarWarm||7;
-  const list=S.contacts.map(c=>({c,days:daysAgo(c.lastContact||c.addedDate)})).sort((a,b)=>b.days-a.days);
+  const list=visibleContacts().map(c=>({c,days:daysAgo(c.lastContact||c.addedDate)})).sort((a,b)=>b.days-a.days);
   const hotCnt=list.filter(x=>x.days>=hot).length;const warmCnt=list.filter(x=>x.days>=warm&&x.days<hot).length;const okCnt=list.filter(x=>x.days<warm).length;
   document.getElementById('radar-stats').innerHTML='<div class="stat-card"><div class="stat-lbl" style="color:var(--rd);">🔴 Hot ('+hot+'+ days)</div><div class="stat-val">'+hotCnt+'</div><div class="stat-sub">Needs immediate contact</div></div><div class="stat-card"><div class="stat-lbl" style="color:var(--am);">🟡 Warm ('+warm+'-'+hot+' days)</div><div class="stat-val">'+warmCnt+'</div><div class="stat-sub">Follow up soon</div></div><div class="stat-card"><div class="stat-lbl" style="color:var(--gn);">🟢 OK (under '+warm+' days)</div><div class="stat-val">'+okCnt+'</div><div class="stat-sub">Recently contacted</div></div>';
-  document.getElementById('radar-list').innerHTML=list.length?list.map(({c,days})=>{const cls=days>=hot?'r-hot':days>=warm?'r-warm':'r-ok';const invs=S.investments.filter(x=>x.contactId===c.id);const total=invs.reduce((s,i)=>s+(i.amount||0),0);return'<div class="radar-row" onclick="openContactDetail(\''+c.id+'\')"><div class="av av-teal" style="width:32px;height:32px;font-size:11px;">'+c.first[0]+c.last[0]+'</div><div style="flex:1;"><div style="font-size:13px;font-weight:600;">'+c.first+' '+c.last+'</div><div style="font-size:11px;color:var(--ink-light);">'+contactStage(c)+' · '+(c.assignee?userById(c.assignee).name:'Unassigned')+'</div></div>'+(total?'<div style="font-size:13px;font-weight:700;color:var(--teal-dark);">'+fmt$(total)+'</div>':'')+'<span class="radar-days '+cls+'">'+days+'d ago</span></div>';}).join(''):'<div class="empty"><div class="empty-icon">📡</div><div class="empty-title">No investors yet</div></div>';
-}
-
-// TEMPLATES RENDER
-function renderTemplates(){
-  const stageF=document.getElementById('tmpl-stage-filter')&&document.getElementById('tmpl-stage-filter').value||'';
-  const list=S.templates.filter(t=>!stageF||t.stage===stageF);
-  document.getElementById('templates-list').innerHTML=list.length?list.map(t=>'<div class="tmpl-card"><div class="tmpl-hdr"><div><div class="tmpl-name">'+t.name+'</div><div class="tmpl-stage">'+t.stage+' · '+t.role+'</div>'+(t.subject?'<div style="font-size:11px;color:var(--ink-light);margin-top:2px;">Subject: '+t.subject+'</div>':'')+'</div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn btn-xs btn-orange" onclick="openInGmail(\''+t.id+'\',null)" title="Opens Gmail with subject and body pre-filled">✉️ Open in Gmail</button><button class="btn btn-xs" onclick="copyTemplate(\''+t.id+'\',null)">📋 Copy</button><button class="btn btn-xs btn-primary" onclick="editTemplate(\''+t.id+'\')">Edit</button><button class="btn btn-xs btn-danger" onclick="deleteTemplate(\''+t.id+'\')">Delete</button></div></div><div class="tmpl-body">'+t.body.substring(0,300)+(t.body.length>300?'…':'')+'</div></div>').join(''):'<div class="empty"><div class="empty-icon">✉️</div><div class="empty-title">No templates found</div></div>';
+  document.getElementById('radar-list').innerHTML=list.length?list.map(({c,days})=>{const cls=days>=hot?'r-hot':days>=warm?'r-warm':'r-ok';const invs=S.investments.filter(x=>x.contactId===c.id&&!x.isProspectPlaceholder);const total=invs.reduce((s,i)=>s+(i.amount||0),0);return'<div class="radar-row" onclick="openContactDetail(\''+c.id+'\')"><div class="av av-teal" style="width:32px;height:32px;font-size:11px;">'+c.first[0]+c.last[0]+'</div><div style="flex:1;"><div style="font-size:13px;font-weight:600;">'+c.first+' '+c.last+'</div><div style="font-size:11px;color:var(--ink-light);">'+contactStage(c)+' · '+(c.assignee?userById(c.assignee).name:'Unassigned')+(c.company?' · '+c.company:'')+'</div></div>'+(total?'<div style="font-size:13px;font-weight:700;color:var(--teal-dark);">'+fmt$(total)+'</div>':'')+'<span class="radar-days '+cls+'">'+days+'d ago</span></div>';}).join(''):'<div class="empty"><div class="empty-icon">📡</div><div class="empty-title">No investors yet</div></div>';
 }
 </script><script>
+// ═══════════════════════════════════════════════════════════
+// TEMPLATES RENDER
+// ═══════════════════════════════════════════════════════════
+function renderTemplates(){
+  const stageF=(document.getElementById('tmpl-stage-filter')&&document.getElementById('tmpl-stage-filter').value)||'';
+  const list=S.templates.filter(t=>!stageF||t.stage===stageF);
+  document.getElementById('templates-list').innerHTML=list.length?list.map(t=>'<div class="tmpl-card"><div class="tmpl-hdr"><div><div class="tmpl-name">'+t.name+'</div><div class="tmpl-stage">'+t.stage+' · '+t.role+'</div>'+(t.subject?'<div style="font-size:11px;color:var(--ink-light);margin-top:2px;">Subject: '+t.subject+'</div>':'')+'</div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn btn-xs btn-orange" onclick="openInGmail(\''+t.id+'\',null)">✉️ Open in Gmail</button><button class="btn btn-xs" onclick="copyTemplate(\''+t.id+'\',null)">📋 Copy</button><button class="btn btn-xs btn-primary" onclick="editTemplate(\''+t.id+'\')">Edit</button><button class="btn btn-xs btn-danger" onclick="deleteTemplate(\''+t.id+'\')">Delete</button></div></div><div class="tmpl-body">'+t.body.substring(0,300)+(t.body.length>300?'…':'')+'</div></div>').join(''):'<div class="empty"><div class="empty-icon">✉️</div><div class="empty-title">No templates found</div></div>';
+}
+
+// ═══════════════════════════════════════════════════════════
 // REPORTS
+// ═══════════════════════════════════════════════════════════
 function renderReports(){renderReportsOverview();}
 function renderReportsOverview(){
-  const totalCap=S.investments.filter(i=>i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0);
-  const dklCap=S.investments.filter(i=>i.entity==='DKL'&&i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0);
-  const refCap=S.investments.filter(i=>i.entity==='Refuge'&&i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0);
-  const tpwCap=S.investments.filter(i=>i.entity==='TPW'&&i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0);
-  document.getElementById('reports-overview').innerHTML='<div class="stat-grid" style="margin-bottom:18px;"><div class="stat-card"><div class="stat-lbl">Total Capital Raised</div><div class="stat-val">'+fmt$(totalCap)+'</div><div class="stat-bar"></div></div><div class="stat-card"><div class="stat-lbl">DKL Holdings</div><div class="stat-val">'+fmt$(dklCap)+'</div><div class="stat-bar"></div></div><div class="stat-card"><div class="stat-lbl">Refuge Holdings</div><div class="stat-val">'+fmt$(refCap)+'</div><div class="stat-bar orange"></div></div><div class="stat-card"><div class="stat-lbl">TPW Lending</div><div class="stat-val">'+fmt$(tpwCap)+'</div><div class="stat-bar"></div></div></div><div class="g2"><div class="card"><div class="card-hdr"><div class="card-title">Capital by Offering</div></div>'+OFFERINGS.map(o=>{const amt=S.investments.filter(i=>i.offering===o.id&&i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0);const pct=totalCap>0?Math.round(amt/totalCap*100):0;return'<div class="rbar-row"><div class="rbar-lbl">'+o.label+'</div><div class="rbar-track"><div class="rbar-fill" style="background:'+o.color+';width:'+pct+'%;"></div></div><div class="rbar-val">'+fmt$(amt)+'</div></div>';}).join('')+'</div><div class="card"><div class="card-hdr"><div class="card-title">Investors by Stage</div></div>'+ALL_STAGES.map(st=>{const cnt=S.investments.filter(i=>i.stage===st).length;const max=Math.max(...ALL_STAGES.map(s=>S.investments.filter(i=>i.stage===s).length),1);return'<div class="rbar-row"><div class="rbar-lbl">'+st+'</div><div class="rbar-track"><div class="rbar-fill" style="width:'+(cnt/max*100)+'%;"></div></div><div class="rbar-val">'+cnt+'</div></div>';}).join('')+'</div></div>';
+  const invs=isOwner()?S.investments.filter(i=>!i.isProspectPlaceholder):visibleInvestments().filter(i=>!i.isProspectPlaceholder);
+  const totalCap=invs.filter(i=>i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0);
+  const dklCap=invs.filter(i=>i.entity==='DKL'&&i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0);
+  const refCap=invs.filter(i=>i.entity==='Refuge'&&i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0);
+  const tpwCap=invs.filter(i=>i.entity==='TPW'&&i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0);
+  document.getElementById('reports-overview').innerHTML='<div class="stat-grid" style="margin-bottom:18px;"><div class="stat-card"><div class="stat-lbl">Total Capital Raised</div><div class="stat-val">'+fmt$(totalCap)+'</div><div class="stat-bar"></div></div><div class="stat-card"><div class="stat-lbl">DKL Holdings</div><div class="stat-val">'+fmt$(dklCap)+'</div><div class="stat-bar"></div></div><div class="stat-card"><div class="stat-lbl">Refuge Holdings</div><div class="stat-val">'+fmt$(refCap)+'</div><div class="stat-bar orange"></div></div><div class="stat-card"><div class="stat-lbl">TPW Lending</div><div class="stat-val">'+fmt$(tpwCap)+'</div><div class="stat-bar"></div></div></div><div class="g2"><div class="card"><div class="card-hdr"><div class="card-title">Capital by Offering</div></div>'+OFFERINGS.map(o=>{const amt=invs.filter(i=>i.offering===o.id&&i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0);const pct=totalCap>0?Math.round(amt/totalCap*100):0;return'<div class="rbar-row"><div class="rbar-lbl">'+o.label+'</div><div class="rbar-track"><div class="rbar-fill" style="background:'+o.color+';width:'+pct+'%;"></div></div><div class="rbar-val">'+fmt$(amt)+'</div></div>';}).join('')+'</div><div class="card"><div class="card-hdr"><div class="card-title">Investors by Stage</div></div>'+ALL_STAGES.map(st=>{const cnt=S.investments.filter(i=>i.stage===st&&!i.isProspectPlaceholder).length;const max=Math.max(...ALL_STAGES.map(s=>S.investments.filter(i=>i.stage===s&&!i.isProspectPlaceholder).length),1);return'<div class="rbar-row"><div class="rbar-lbl">'+st+'</div><div class="rbar-track"><div class="rbar-fill" style="width:'+(cnt/max*100)+'%;"></div></div><div class="rbar-val">'+cnt+'</div></div>';}).join('')+'</div></div>';
 }
 function renderReportsFundraiser(){
-  document.getElementById('reports-fundraiser').innerHTML='<div class="g2">'+USERS.filter(u=>u.role!=='admin').map(u=>{
+  // Only owners see all fundraisers; fundraisers see only themselves
+  const showUsers=isOwner()?USERS.filter(u=>u.role!=='admin'):[userById(S.currentUser)];
+  document.getElementById('reports-fundraiser').innerHTML='<div class="g2">'+showUsers.map(u=>{
     const contacts=S.contacts.filter(c=>c.assignee===u.id).length;
-    const capital=S.investments.filter(i=>{const c=S.contacts.find(x=>x.id===i.contactId);return c&&c.assignee===u.id&&i.stage==='Active Investor';}).reduce((s,i)=>s+(i.amount||0),0);
+    const capital=S.investments.filter(i=>{const c=S.contacts.find(x=>x.id===i.contactId);return c&&c.assignee===u.id&&i.stage==='Active Investor'&&!i.isProspectPlaceholder;}).reduce((s,i)=>s+(i.amount||0),0);
     const calls30=S.activities.filter(a=>a.type==='call'&&a.user===u.id&&daysAgo(a.date)<=30).length;
     const emails30=S.activities.filter(a=>a.type==='email'&&a.user===u.id&&daysAgo(a.date)<=30).length;
     const meetings30=S.activities.filter(a=>a.type==='meeting'&&a.user===u.id&&daysAgo(a.date)<=30).length;
@@ -1973,26 +2455,28 @@ function renderReportsVelocity(){
 }
 function renderReportsYOY(){
   const curYear=new Date().getFullYear();const years=[curYear-1,curYear];
-  document.getElementById('reports-yoy').innerHTML='<div class="card"><div class="card-hdr"><div class="card-title">Year-over-Year Capital</div></div><div class="g2">'+years.map(yr=>{const cap=S.investments.filter(i=>i.stage==='Active Investor'&&(i.startDate||'').startsWith(yr.toString())).reduce((s,i)=>s+(i.amount||0),0);const cnt=S.investments.filter(i=>i.stage==='Active Investor'&&(i.startDate||'').startsWith(yr.toString())).length;return'<div class="stat-card"><div class="stat-lbl">'+yr+'</div><div class="stat-val">'+fmt$(cap)+'</div><div class="stat-sub">'+cnt+' investments</div><div class="stat-bar '+(yr===curYear?'orange':'')+'"></div></div>';}).join('')+'</div><div style="margin-top:14px;">'+OFFERINGS.map(o=>{const row=years.map(yr=>S.investments.filter(i=>i.offering===o.id&&i.stage==='Active Investor'&&(i.startDate||'').startsWith(yr.toString())).reduce((s,i)=>s+(i.amount||0),0));if(row.every(r=>r===0))return'';return'<div class="rbar-row"><div class="rbar-lbl">'+o.label+'</div><div style="flex:1;display:flex;gap:8px;">'+row.map((v,i)=>'<span style="font-size:12px;color:'+(i===0?'var(--ink-light)':'var(--teal-dark)')+';font-weight:600;">'+years[i]+': '+fmt$(v)+'</span>').join(' → ')+'</div></div>';}).join('')+'</div></div>';
+  document.getElementById('reports-yoy').innerHTML='<div class="card"><div class="card-hdr"><div class="card-title">Year-over-Year Capital</div></div><div class="g2">'+years.map(yr=>{const cap=S.investments.filter(i=>i.stage==='Active Investor'&&!i.isProspectPlaceholder&&(i.startDate||'').startsWith(yr.toString())).reduce((s,i)=>s+(i.amount||0),0);const cnt=S.investments.filter(i=>i.stage==='Active Investor'&&!i.isProspectPlaceholder&&(i.startDate||'').startsWith(yr.toString())).length;return'<div class="stat-card"><div class="stat-lbl">'+yr+'</div><div class="stat-val">'+fmt$(cap)+'</div><div class="stat-sub">'+cnt+' investments</div><div class="stat-bar '+(yr===curYear?'orange':'')+'"></div></div>';}).join('')+'</div><div style="margin-top:14px;">'+OFFERINGS.map(o=>{const row=years.map(yr=>S.investments.filter(i=>i.offering===o.id&&!i.isProspectPlaceholder&&i.stage==='Active Investor'&&(i.startDate||'').startsWith(yr.toString())).reduce((s,i)=>s+(i.amount||0),0));if(row.every(r=>r===0))return'';return'<div class="rbar-row"><div class="rbar-lbl">'+o.label+'</div><div style="flex:1;display:flex;gap:8px;">'+row.map((v,i)=>'<span style="font-size:12px;color:'+(i===0?'var(--ink-light)':'var(--teal-dark)')+';font-weight:600;">'+years[i]+': '+fmt$(v)+'</span>').join(' → ')+'</div></div>';}).join('')+'</div></div>';
 }
 function renderReportsConversion(){
-  const total=S.investments.length;
-  document.getElementById('reports-conversion').innerHTML='<div class="card"><div class="card-hdr"><div class="card-title">Stage Conversion Rates</div></div>'+STAGES.map((st,i)=>{const cnt=S.investments.filter(inv=>STAGES.indexOf(inv.stage)>=i).length;const pct=total>0?Math.round(cnt/total*100):0;return'<div class="rbar-row"><div class="rbar-lbl">'+st+'</div><div class="rbar-track"><div class="rbar-fill" style="width:'+pct+'%;"></div></div><div class="rbar-val">'+cnt+' ('+pct+'%)</div></div>';}).join('')+'<div style="font-size:12px;color:var(--ink-light);margin-top:12px;">Shows records that have reached each stage or beyond.</div></div>';
+  const total=S.investments.filter(i=>!i.isProspectPlaceholder).length||1;
+  document.getElementById('reports-conversion').innerHTML='<div class="card"><div class="card-hdr"><div class="card-title">Stage Conversion Rates</div></div>'+STAGES.map((st,i)=>{const cnt=S.investments.filter(inv=>!inv.isProspectPlaceholder&&STAGES.indexOf(inv.stage)>=i).length;const pct=Math.round(cnt/total*100);return'<div class="rbar-row"><div class="rbar-lbl">'+st+'</div><div class="rbar-track"><div class="rbar-fill" style="width:'+pct+'%;"></div></div><div class="rbar-val">'+cnt+' ('+pct+'%)</div></div>';}).join('')+'<div style="font-size:12px;color:var(--ink-light);margin-top:12px;">Percentage of all investment records that have reached each stage.</div></div>';
 }
 
-// COMPLIANCE
+// ── COMPLIANCE ─────────────────────────────────────────────────
 function renderCompliance(){
-  const expAccred=S.contacts.filter(c=>c.accredExpiry&&daysUntil(c.accredExpiry)<=60&&daysUntil(c.accredExpiry)>=0);
+  const contacts=isOwner()?S.contacts:visibleContacts();
+  const invs=isOwner()?S.investments.filter(i=>!i.isProspectPlaceholder):visibleInvestments().filter(i=>!i.isProspectPlaceholder);
+  const expAccred=contacts.filter(c=>c.accredExpiry&&daysUntil(c.accredExpiry)<=60&&daysUntil(c.accredExpiry)>=0);
   document.getElementById('comp-accred').innerHTML=expAccred.length?expAccred.map(c=>'<div class="dr" onclick="openContactDetail(\''+c.id+'\')" style="cursor:pointer;"><span>'+c.first+' '+c.last+'</span><span class="comp-badge '+(daysUntil(c.accredExpiry)<=14?'comp-bad':'comp-warn')+'">'+daysUntil(c.accredExpiry)+'d remaining</span></div>').join(''):'<div style="font-size:13px;color:var(--ink-light);padding:8px 0;">No accreditations expiring within 60 days</div>';
-  const ss={unsent:0,sent:0,signed:0,countersigned:0};S.investments.forEach(i=>{const k=i.subStatus||'unsent';if(ss.hasOwnProperty(k))ss[k]++;});
+  const ss={unsent:0,sent:0,signed:0,countersigned:0};invs.forEach(i=>{const k=i.subStatus||'unsent';if(ss.hasOwnProperty(k))ss[k]++;});
   document.getElementById('comp-subagree').innerHTML=Object.entries(ss).map(([k,v])=>'<div class="dr"><span style="text-transform:capitalize;">'+k+'</span><span class="comp-badge '+(k==='countersigned'||k==='signed'?'comp-ok':k==='sent'?'comp-warn':'comp-bad')+'">'+v+'</span></div>').join('');
-  const ks={yes:0,pending:0,no:0};S.contacts.forEach(c=>{const k=c.kyc||'no';if(ks.hasOwnProperty(k))ks[k]++;});
+  const ks={yes:0,pending:0,no:0};contacts.forEach(c=>{const k=c.kyc||'no';if(ks.hasOwnProperty(k))ks[k]++;});
   document.getElementById('comp-kyc').innerHTML='<div class="dr"><span>✓ Complete</span><span class="comp-badge comp-ok">'+ks.yes+'</span></div><div class="dr"><span>⏳ Pending</span><span class="comp-badge comp-warn">'+ks.pending+'</span></div><div class="dr"><span>✗ Incomplete</span><span class="comp-badge comp-bad">'+ks.no+'</span></div>';
-  const ppms={};S.investments.forEach(i=>{if(i.ppmVersion){ppms[i.ppmVersion]=(ppms[i.ppmVersion]||0)+1;}});
+  const ppms={};invs.forEach(i=>{if(i.ppmVersion){ppms[i.ppmVersion]=(ppms[i.ppmVersion]||0)+1;}});
   document.getElementById('comp-ppm').innerHTML=Object.keys(ppms).length?Object.entries(ppms).map(([v,c])=>'<div class="dr"><span>PPM '+v+'</span><span>'+c+' investor'+(c!==1?'s':'')+'</span></div>').join(''):'<div style="font-size:13px;color:var(--ink-light);padding:8px 0;">No PPM versions tracked</div>';
 }
 
-// SETTINGS
+// ── SETTINGS ─────────────────────────────────────────────────
 function renderSettings(){
   document.getElementById('settings-team').innerHTML=USERS.map(u=>'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--rule);"><div class="av" style="background:'+u.color+'22;color:'+u.color+';width:34px;height:34px;font-size:12px;">'+u.initials+'</div><div style="flex:1;"><div style="font-size:13px;font-weight:600;">'+u.name+'</div><div style="font-size:11px;color:var(--ink-light);">'+u.email+'</div></div><span class="tag '+(u.role==='owner'?'tag-active':u.role==='admin'?'tag-onboarding':'tag-discovery')+'">'+u.role+'</span></div>').join('');
   document.getElementById('radar-hot').value=S.settings.radarHot||14;
@@ -2002,9 +2486,9 @@ function renderSettings(){
 function saveRadarSettings(){S.settings.radarHot=parseInt(document.getElementById('radar-hot').value)||14;S.settings.radarWarm=parseInt(document.getElementById('radar-warm').value)||7;saveState();showToast('Radar settings saved');}
 function saveStallSettings(){S.settings.stallDays=parseInt(document.getElementById('stall-days').value)||14;saveState();showToast('Stall settings saved');}
 
-// USER SWITCHER
+// ── USER SWITCHER ─────────────────────────────────────────────
 function renderUserSwitcher(){
-  document.getElementById('user-list').innerHTML=USERS.map(u=>'<div onclick="switchUser(\''+u.id+'\')" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--r);cursor:pointer;border:1px solid '+(S.currentUser===u.id?'var(--teal-dark)':'transparent')+';background:'+(S.currentUser===u.id?'var(--teal-light)':'transparent')+';margin-bottom:6px;transition:all .15s;"><div class="av" style="background:'+u.color+'22;color:'+u.color+';width:36px;height:36px;">'+u.initials+'</div><div><div style="font-size:13px;font-weight:600;">'+u.name+'</div><div style="font-size:11px;color:var(--ink-light);">'+u.role+' · '+u.email+'</div></div>'+(S.currentUser===u.id?'<span style="margin-left:auto;color:var(--teal-dark);">✓</span>':'')+'</div>').join('');
+  document.getElementById('user-list').innerHTML=USERS.map(u=>'<div onclick="switchUser(\''+u.id+'\')" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--r);cursor:pointer;border:1px solid '+(S.currentUser===u.id?'var(--teal-dark)':'transparent')+';background:'+(S.currentUser===u.id?'var(--teal-light)':'transparent')+';margin-bottom:6px;"><div class="av" style="background:'+u.color+'22;color:'+u.color+';width:36px;height:36px;">'+u.initials+'</div><div><div style="font-size:13px;font-weight:600;">'+u.name+'</div><div style="font-size:11px;color:var(--ink-light);">'+u.role+'</div></div>'+(S.currentUser===u.id?'<span style="margin-left:auto;color:var(--teal-dark);">✓</span>':'')+'</div>').join('');
 }
 document.getElementById('switch-user-modal').addEventListener('click',e=>{if(e.target.closest('.modal'))renderUserSwitcher();});
 function switchUser(id){
@@ -2013,10 +2497,10 @@ function switchUser(id){
   document.getElementById('hdr-av-initials').style.background=u.color;
   document.getElementById('hdr-uname').textContent=u.name;
   document.getElementById('hdr-role').textContent=u.role;
-  closeModal('switch-user-modal');renderDashboard();updateBadges();showToast('Switched to '+u.name);
+  closeModal('switch-user-modal');renderDashboard();renderContacts();renderPipeline();updateBadges();showToast('Switched to '+u.name);
 }
 
-// CSV IMPORT/EXPORT
+// ── CSV IMPORT/EXPORT ─────────────────────────────────────────
 function handleCSVFile(e){parseCSV(e.target.files[0]);}
 function handleCSVDrop(e){e.preventDefault();document.getElementById('import-zone').classList.remove('dragover');const f=e.dataTransfer.files[0];if(f)parseCSV(f);}
 function parseCSV(file){
@@ -2025,60 +2509,53 @@ function parseCSV(file){
     const lines=ev.target.result.split('\n').filter(l=>l.trim());if(lines.length<2){alert('CSV needs headers and at least one row.');return;}
     const headers=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/"/g,''));
     S._importRows=lines.slice(1).map(line=>{const vals=line.split(',').map(v=>v.trim().replace(/"/g,''));const row={};headers.forEach((h,i)=>row[h]=vals[i]||'');return row;}).filter(r=>r.first_name||r.last_name||r.name);
-    document.getElementById('import-preview').innerHTML='<div class="alert-box alert-teal">✓ Found '+S._importRows.length+' investor'+(S._importRows.length!==1?'s':'')+' to import</div><table class="exp-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Source</th></tr></thead><tbody>'+S._importRows.slice(0,5).map(r=>'<tr><td>'+(r.first_name||'')+' '+(r.last_name||r.name||'')+'</td><td>'+(r.email||'')+'</td><td>'+(r.phone||'')+'</td><td>'+(r.lead_source||r.source||'')+'</td></tr>').join('')+(S._importRows.length>5?'<tr><td colspan="4" style="color:var(--ink-light);font-style:italic;">…and '+(S._importRows.length-5)+' more</td></tr>':'')+'</tbody></table>';
+    document.getElementById('import-preview').innerHTML='<div class="alert-box alert-teal">✓ Found '+S._importRows.length+' investor'+(S._importRows.length!==1?'s':'')+' to import</div><table class="exp-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Company</th></tr></thead><tbody>'+S._importRows.slice(0,5).map(r=>'<tr><td>'+(r.first_name||'')+' '+(r.last_name||r.name||'')+'</td><td>'+(r.email||'')+'</td><td>'+(r.phone?fmtPhone(r.phone):'')+'</td><td>'+(r.company||'')+'</td></tr>').join('')+(S._importRows.length>5?'<tr><td colspan="4" style="color:var(--ink-light);font-style:italic;">…and '+(S._importRows.length-5)+' more</td></tr>':'')+'</tbody></table>';
     document.getElementById('import-confirm-btn').style.display='inline-flex';
   };reader.readAsText(file);
 }
 function confirmImport(){
   let added=0,dupes=0;
   S._importRows.forEach(r=>{
-    const first=(r.first_name||r.name&&r.name.split(' ')[0]||'').trim();
-    const last=(r.last_name||r.name&&r.name.split(' ').slice(1).join(' ')||'').trim();
+    const first=(r.first_name||(r.name&&r.name.split(' ')[0])||'').trim();
+    const last=(r.last_name||(r.name&&r.name.split(' ').slice(1).join(' '))||'').trim();
     if(!first&&!last)return;
     if(S.contacts.find(c=>c.first.toLowerCase()===first.toLowerCase()&&c.last.toLowerCase()===last.toLowerCase())){dupes++;return;}
-    S.contacts.push({id:uid(),first,last,email:r.email||'',phone:r.phone||'',address:'',spouse:'',spouseEmail:'',linkedin:'',profession:'',assignee:r.assigned_to||'',entityType:r.entity_type||'Individual',leadSource:r.lead_source||r.source||'',referredBy:r.referred_by||'',commPref:'',contactTime:'',warmth:3,estCapital:0,accredited:'',accredExpiry:'',kyc:'no',dnc:false,language:'English',finraNotes:'',notes:r.notes||'',addedDate:today(),lastContact:today(),referralsGiven:0,coInvestors:[],anniversaryDate:null});added++;
+    const newC={id:uid(),first,last,email:r.email||'',phone:fmtPhone(r.phone||''),address:'',spouse:'',spouseEmail:'',linkedin:'',profession:r.profession||'',company:r.company||'',assignee:r.assigned_to||S.currentUser,entityType:r.entity_type||'Individual',leadSource:r.lead_source||r.source||'',referredBy:r.referred_by||'',commPref:'',contactTime:'',warmth:3,estCapital:0,accredited:'',accredExpiry:'',kyc:'no',dnc:false,language:'English',finraNotes:'',notes:r.notes||'',addedDate:today(),lastContact:today(),referralsGiven:0,coInvestors:[],anniversaryDate:null};
+    S.contacts.push(newC);
+    // Auto prospect placeholder
+    S.investments.push({id:uid(),contactId:newC.id,entity:'',offering:'Prospect',stage:'Prospect',circle:'soft',amount:0,offering506:'',flatRate:'',flatTerm:'',startDate:'',expDate:'',capitalCallDate:'',ppmVersion:'',subStatus:'unsent',notes:'Imported',addedDate:today(),stageHistory:[{stage:'Prospect',date:today(),user:S.currentUser}],waitlisted:false,isProspectPlaceholder:true});
+    added++;
   });
   saveState();populateUserSelects();renderContacts();updateBadges();closeModal('import-modal');showToast('Imported '+added+' investors'+(dupes?' ('+dupes+' duplicates skipped)':''));
 }
 function exportCSV(){
-  const h=['First Name','Last Name','Email','Phone','Entity Type','Lead Source','Assigned To','Accredited','Stage','Total Invested','Last Contact','Added Date'];
-  const rows=S.contacts.map(c=>{const invs=S.investments.filter(i=>i.contactId===c.id);const tot=invs.reduce((s,i)=>s+(i.amount||0),0);return[c.first,c.last,c.email,c.phone,c.entityType,c.leadSource,c.assignee?userById(c.assignee).name:'',c.accredited,contactStage(c),tot,c.lastContact,c.addedDate].map(v=>'"'+(v||'')+'"').join(',');});
+  const h=['First Name','Last Name','Email','Phone','Company','Entity Type','Lead Source','Assigned To','Accredited','Stage','Total Invested','Last Contact','Added Date'];
+  const rows=visibleContacts().map(c=>{const invs=S.investments.filter(i=>i.contactId===c.id&&!i.isProspectPlaceholder);const tot=invs.reduce((s,i)=>s+(i.amount||0),0);return[c.first,c.last,c.email,c.phone,c.company||'',c.entityType,c.leadSource,c.assignee?userById(c.assignee).name:'',c.accredited,contactStage(c),tot,c.lastContact,c.addedDate].map(v=>'"'+(v||'')+'"').join(',');});
   const csv=[h.join(','),...rows].join('\n');const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='refuge_crm_investors.csv';a.click();
 }
 function exportJSON(){const a=document.createElement('a');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(S,null,2));a.download='refuge_crm_backup.json';a.click();}
-function confirmReset(){
-  if(!isOwner()){alert('Only owners can reset data.');return;}
-  if(!confirm('Reset ALL data?'))return;if(!confirm('Are you absolutely sure?'))return;
-  S.contacts=[];S.investments=[];S.activities=[];S.tasks=[];S.templates=defaultTemplates();
-  saveState();renderDashboard();renderContacts();updateBadges();showToast('Data reset');
-}
-function bulkAssign(){
-  const assignee=document.getElementById('bulk-assign').value;if(!assignee)return;
-  document.querySelectorAll('.c-card.selected').forEach(el=>{const id=el.getAttribute('data-id');const c=S.contacts.find(x=>x.id===id);if(c)c.assignee=assignee;});
-  saveState();renderContacts();showToast('Assigned');
-}
+function bulkAssign(){const assignee=document.getElementById('bulk-assign').value;if(!assignee)return;document.querySelectorAll('.c-card.selected').forEach(el=>{const id=el.getAttribute('data-id');const c=S.contacts.find(x=>x.id===id);if(c)c.assignee=assignee;});saveState();renderContacts();showToast('Assigned');}
 function clearBulk(){document.querySelectorAll('.c-card.selected').forEach(el=>el.classList.remove('selected'));document.getElementById('bulk-bar').style.display='none';}
 
-// TOAST
+// ── TOAST ─────────────────────────────────────────────────────
 let _toastTimer;
 function showToast(msg){const t=document.getElementById('sync-toast');document.getElementById('sync-msg').textContent=msg;t.style.display='flex';clearTimeout(_toastTimer);_toastTimer=setTimeout(()=>t.style.display='none',3000);}
 
+// ═══════════════════════════════════════════════════════════
 // INIT
-async function init() {
-  // Show syncing indicator while loading
-  setSyncStatus('syncing');
-  showToast('Loading from Supabase…');
-  await loadState();
-  populateUserSelects();
-  const _u = userById(S.currentUser);
-  document.getElementById('hdr-av-initials').textContent = _u.initials;
-  document.getElementById('hdr-av-initials').style.background = _u.color;
-  document.getElementById('hdr-uname').textContent = _u.name;
-  document.getElementById('hdr-role').textContent = _u.role;
-  renderDashboard();
-  updateBadges();
-  document.getElementById('goals-modal').addEventListener('click', e => { if (e.target.closest('.modal')) loadGoalsModal(); });
-  _calYear = new Date().getFullYear(); _calMonth = new Date().getMonth();
+// ═══════════════════════════════════════════════════════════
+async function init(){
+  // Check for OAuth callback first
+  const isCallback=await checkAuthCallback();
+  if(!isCallback){
+    // Try to restore existing session
+    const restored=await tryRestoreSession();
+    if(!restored){
+      // Show login screen
+      return; // login screen is already visible by default
+    }
+  }
+  await onLoginSuccess();
 }
 init();
 </script>
