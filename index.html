@@ -119,6 +119,10 @@ body:not(.role-admin) #nc-assignee-field{display:none !important;}
 .tag-exited{background:#E8E8E8;color:#666;}
 .tag-soft{background:var(--teal-light);color:var(--teal-dark);}
 .tag-hard{background:var(--gn-lt);color:var(--gn);}
+.tag-next{background:var(--rd-lt);color:var(--rd);}
+.fu-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--rule);cursor:pointer;}
+.fu-item:hover{background:var(--teal-light);}
+.fu-item:last-child{border-bottom:none;}
 
 /* ── TOOLBAR ── */
 .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
@@ -395,26 +399,27 @@ body:not(.role-admin) #nc-assignee-field{display:none !important;}
 <nav class="sidebar">
   <div class="nav-section">
     <div class="nav-label">Main</div>
-    <div class="nav-item active" onclick="showView('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
-    <div class="nav-item" onclick="showView('contacts')"><span class="nav-icon">👥</span> Investors <span class="nav-badge" id="badge-contacts">0</span></div>
-    <div class="nav-item" onclick="showView('pipeline')"><span class="nav-icon">🏗</span> Pipeline</div>
-    <div class="nav-item" onclick="showView('investments')"><span class="nav-icon">💼</span> Investment Records</div>
+    <div class="nav-item active" data-view="dashboard" onclick="showView('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
+    <div class="nav-item" data-view="contacts" onclick="showView('contacts')"><span class="nav-icon">👥</span> Investors <span class="nav-badge" id="badge-contacts">0</span></div>
+    <div class="nav-item" data-view="pipeline" onclick="showView('pipeline')"><span class="nav-icon">🏗</span> Pipeline</div>
+    <div class="nav-item" data-view="investments" onclick="showView('investments')"><span class="nav-icon">💼</span> Investment Records</div>
   </div>
   <div class="nav-section">
     <div class="nav-label">Activity</div>
-    <div class="nav-item" onclick="showView('tasks')"><span class="nav-icon">✅</span> Tasks <span class="nav-badge" id="badge-tasks">0</span></div>
-    <div class="nav-item" onclick="showView('calendar')"><span class="nav-icon">📅</span> Calendar</div>
-    <div class="nav-item" onclick="showView('radar')"><span class="nav-icon">📡</span> Radar</div>
+    <div class="nav-item" data-view="followups" onclick="showView('followups')"><span class="nav-icon">🔔</span> Follow-ups <span class="nav-badge" id="badge-followups" style="display:none;">0</span></div>
+    <div class="nav-item" data-view="tasks" onclick="showView('tasks')"><span class="nav-icon">✅</span> Tasks <span class="nav-badge" id="badge-tasks">0</span></div>
+    <div class="nav-item" data-view="calendar" onclick="showView('calendar')"><span class="nav-icon">📅</span> Calendar</div>
+    <div class="nav-item" data-view="radar" onclick="showView('radar')"><span class="nav-icon">📡</span> Radar</div>
   </div>
   <div class="nav-section">
     <div class="nav-label">Tools</div>
-    <div class="nav-item" onclick="showView('templates')"><span class="nav-icon">✉️</span> Email Templates</div>
-    <div class="nav-item" onclick="showView('reports')"><span class="nav-icon">📈</span> Reports</div>
-    <div class="nav-item" onclick="showView('compliance')"><span class="nav-icon">🛡</span> Compliance</div>
+    <div class="nav-item" data-view="templates" onclick="showView('templates')"><span class="nav-icon">✉️</span> Email Templates</div>
+    <div class="nav-item" data-view="reports" onclick="showView('reports')"><span class="nav-icon">📈</span> Reports</div>
+    <div class="nav-item" data-view="compliance" onclick="showView('compliance')"><span class="nav-icon">🛡</span> Compliance</div>
   </div>
   <div class="nav-section">
     <div class="nav-label">Admin</div>
-    <div class="nav-item" onclick="showView('settings')"><span class="nav-icon">⚙️</span> Settings</div>
+    <div class="nav-item" data-view="settings" onclick="showView('settings')"><span class="nav-icon">⚙️</span> Settings</div>
   </div>
   <div class="sidebar-bottom">
     <div style="display:flex;align-items:center;gap:6px;">
@@ -451,6 +456,7 @@ body:not(.role-admin) #nc-assignee-field{display:none !important;}
 
   <!-- TASKS DUE TODAY ALERT -->
   <div id="db-tasks-alert"></div>
+  <div id="db-followups" style="margin-bottom:14px;"></div>
 
   <!-- STAT GRID -->
   <div class="stat-grid" id="db-stats"></div>
@@ -544,6 +550,10 @@ body:not(.role-admin) #nc-assignee-field{display:none !important;}
       <option value="On Hold">On Hold</option>
       <option value="Exited">Exited</option>
     </select>
+    <select id="contact-next" onchange="renderContacts()">
+      <option value="">Any next step</option>
+      <option value="missing">No next step</option>
+    </select>
     <select id="contact-assignee" onchange="renderContacts()">
       <option value="">All Fundraisers</option>
     </select>
@@ -554,12 +564,16 @@ body:not(.role-admin) #nc-assignee-field{display:none !important;}
       <option value="added">Sort: Date Added</option>
     </select>
   </div>
-  <div id="bulk-bar" class="alert-teal" style="display:none;padding:10px 14px;border-radius:var(--r);margin-bottom:12px;display:none;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;">
+  <div id="bulk-bar" class="alert-teal admin-only" style="display:none;padding:10px 14px;border-radius:var(--r);margin-bottom:12px;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;">
     <span id="bulk-count">0 selected</span>
     <select id="bulk-assign" style="font-size:12px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--rule2);">
-      <option value="">Assign to…</option>
+      <option value="">Fundraiser…</option>
     </select>
-    <button class="btn btn-xs" onclick="bulkAssign()">Apply</button>
+    <button class="btn btn-xs" onclick="bulkAssign()">Set fundraiser</button>
+    <select id="bulk-owner" style="font-size:12px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--rule2);">
+      <option value="">Owner…</option>
+    </select>
+    <button class="btn btn-xs" onclick="bulkSetOwner()">Set owner</button>
     <button class="btn btn-xs btn-danger" onclick="clearBulk()">✕ Clear</button>
   </div>
   <div style="font-size:12px;color:var(--ink-light);margin-bottom:10px;" id="contact-count"></div>
@@ -587,6 +601,10 @@ body:not(.role-admin) #nc-assignee-field{display:none !important;}
       </select>
       <select id="pipe-fundraiser" onchange="renderPipeline()" style="font-size:12px;padding:6px 10px;border-radius:var(--r);border:1px solid var(--rule2);">
         <option value="">All Fundraisers</option>
+      </select>
+      <select id="pipe-next" onchange="renderPipeline()" style="font-size:12px;padding:6px 10px;border-radius:var(--r);border:1px solid var(--rule2);">
+        <option value="">Any next step</option>
+        <option value="missing">No next step</option>
       </select>
     </div>
   </div>
@@ -652,6 +670,40 @@ body:not(.role-admin) #nc-assignee-field{display:none !important;}
     </select>
   </div>
   <div id="tasks-list"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ FOLLOW-UPS ═══ -->
+<div class="view" id="view-followups">
+  <div class="view-hdr">
+    <div>
+      <div class="view-title">Follow-ups</div>
+      <div style="font-size:12px;color:var(--ink-light);margin-top:2px;">Overdue, due today, and investors who have gone quiet</div>
+    </div>
+    <div class="view-actions admin-only" id="fu-person-wrap">
+      <select id="fu-person" onchange="renderFollowups()" style="font-size:12px;padding:6px 10px;border-radius:var(--r);border:1px solid var(--rule2);">
+        <option value="me">My follow-ups</option>
+        <option value="all">Everyone</option>
+      </select>
+    </div>
+  </div>
+  <div class="g3" style="margin-bottom:14px;" id="fu-stats"></div>
+  <div class="g2" style="margin-bottom:14px;">
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">Overdue</div></div>
+      <div id="fu-overdue"></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">Due today</div></div>
+      <div id="fu-today"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">Gone quiet</div>
+      <span id="fu-quiet-label" style="font-size:11px;color:var(--ink-light);"></span>
+    </div>
+    <div id="fu-quiet"></div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ CALENDAR ═══ -->
@@ -779,6 +831,18 @@ body:not(.role-admin) #nc-assignee-field{display:none !important;}
       <div class="card-hdr"><div class="card-title">Stalled Deal Alerts</div></div>
       <div class="fg"><label>Flag deal as stalled after (days in same stage)</label><input type="number" id="stall-days" value="14" style="width:80px;"></div>
       <button class="btn btn-primary btn-sm admin-only" id="save-stall-btn" onclick="saveStallSettings()">Save</button>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">Gone Quiet</div></div>
+      <div class="fg"><label>Active investors with no logged activity for (days)</label><input type="number" id="quiet-days" value="30" min="1" style="width:80px;"></div>
+      <div style="font-size:12px;color:var(--ink-light);margin-bottom:8px;">Default is 30. Stored in app settings. Admins can change it. The morning digest uses the same number.</div>
+      <button class="btn btn-primary btn-sm admin-only" id="save-quiet-btn" onclick="saveQuietSettings()">Save</button>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div class="card-title">Gmail Send</div></div>
+      <div class="fg"><label>Google OAuth client ID</label><input id="google-client-id" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off"></div>
+      <div style="font-size:12px;color:var(--ink-light);margin-bottom:8px;">Public client ID only. No client secret goes in the CRM. When this is set, Send uses the signed-in person's Gmail. When it is empty, Send opens Gmail and logs the email as opened in Gmail.</div>
+      <button class="btn btn-primary btn-sm admin-only" id="save-google-btn" onclick="saveGoogleSettings()">Save</button>
     </div>
     <div class="card">
       <div class="card-hdr"><div class="card-title">Data Management</div></div>
@@ -1233,11 +1297,78 @@ body:not(.role-admin) #nc-assignee-field{display:none !important;}
 </div>
 </div>
 
+<!-- SET NEXT STEP -->
+<div class="modal-overlay" id="next-step-modal" style="z-index:1200;">
+<div class="modal" style="width:460px;">
+  <div class="modal-hdr">
+    <div class="modal-title">Set next step</div>
+    <button class="modal-close" onclick="dismissNextStep()">✕</button>
+  </div>
+  <div id="ns-who" style="font-size:13px;color:var(--ink-mid);margin-bottom:12px;"></div>
+  <div class="fg"><label>Next action *</label><input id="ns-action" placeholder="e.g. Call to confirm documents"></div>
+  <div class="fg"><label>Due date *</label>
+    <input id="ns-date" type="date">
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <button type="button" class="btn btn-xs" onclick="setNextStepDate(2)">+2d</button>
+      <button type="button" class="btn btn-xs" onclick="setNextStepDate(7)">+1w</button>
+      <button type="button" class="btn btn-xs" onclick="setNextStepDate(14)">+2w</button>
+    </div>
+  </div>
+  <div class="fg"><label>Template (optional)</label>
+    <select id="ns-template" onchange="nsTemplateChanged()"><option value="">None</option></select>
+  </div>
+  <div class="m-actions">
+    <button class="btn" onclick="dismissNextStep()">Not now</button>
+    <button class="btn btn-primary" onclick="saveNextStep()">Save next step</button>
+  </div>
+</div>
+</div>
+
+<!-- SEND EMAIL -->
+<div class="modal-overlay" id="send-email-modal" style="z-index:1150;">
+<div class="modal modal-lg">
+  <div class="modal-hdr">
+    <div class="modal-title">Send email</div>
+    <button class="modal-close" onclick="closeModal('send-email-modal')">✕</button>
+  </div>
+  <div id="send-email-mode" style="font-size:12px;color:var(--ink-light);margin:-8px 0 12px;"></div>
+  <div class="fg" id="send-email-contact-wrap"><label>Investor</label><select id="send-email-contact" onchange="sendEmailContactChanged()"></select></div>
+  <div class="fg"><label>To</label><input id="send-email-to" readonly></div>
+  <div class="fg"><label>Template</label><select id="send-email-template" onchange="sendEmailTemplateChanged()"><option value="">Custom email</option></select></div>
+  <div class="fg"><label>Subject</label><input id="send-email-subject" placeholder="Subject"></div>
+  <div class="fg"><label>Body</label>
+    <textarea id="send-email-body" style="min-height:180px;" placeholder="Write the email. Merge fields: [INVESTOR_NAME], [AMOUNT], [OFFERING], [FUNDRAISER_NAME], [FUNDRAISER_EMAIL]"></textarea>
+  </div>
+  <div class="fg" style="display:flex;align-items:center;gap:8px;">
+    <input type="checkbox" id="send-email-next">
+    <label for="send-email-next" style="font-size:13px;color:var(--ink-mid);text-transform:none;letter-spacing:0;font-weight:400;margin:0;">Also create the next-step task</label>
+  </div>
+  <div id="send-email-next-fields" style="display:none;">
+    <div class="fg"><label>Next action</label><input id="send-email-next-action" placeholder="Follow up on this email"></div>
+    <div class="fg"><label>Due</label>
+      <input id="send-email-next-date" type="date">
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button type="button" class="btn btn-xs" onclick="document.getElementById('send-email-next-date').value=addDays(2)">+2d</button>
+        <button type="button" class="btn btn-xs" onclick="document.getElementById('send-email-next-date').value=addDays(7)">+1w</button>
+        <button type="button" class="btn btn-xs" onclick="document.getElementById('send-email-next-date').value=addDays(14)">+2w</button>
+      </div>
+    </div>
+  </div>
+  <div id="send-email-error" class="alert-box alert-red" style="display:none;"></div>
+  <div class="m-actions">
+    <button class="btn" onclick="closeModal('send-email-modal')">Cancel</button>
+    <button class="btn" id="send-email-fallback" style="display:none;" onclick="submitSendEmail('compose')">Open in Gmail instead</button>
+    <button class="btn btn-primary" id="send-email-go" onclick="submitSendEmail('auto')">Send</button>
+  </div>
+</div>
+</div>
+
 <!-- LOGIN SCREEN -->
 <div id="login-screen">
   <div class="login-box">
     <div class="login-logo">Refuge Holdings <span>CRM</span></div>
     <div class="login-sub">Investor Relations Platform</div>
+    <div id="session-banner" class="alert-box alert-red" style="display:none;margin-bottom:12px;"></div>
     <div id="login-error" class="login-error"></div>
     <div class="fg"><label>Email</label><input id="login-email" type="email" placeholder="you@refuge-homes.com" style="font-size:14px;padding:10px 12px;"></div>
     <div class="fg"><label>Password</label><input id="login-password" type="password" placeholder="Password" style="font-size:14px;padding:10px 12px;" onkeydown="if(event.key==='Enter')loginWithEmail()"></div>
@@ -1279,6 +1410,10 @@ let _authToken = null;
 let _authUser = null;
 let _refreshToken = null;
 let _refreshing = null;
+let _refreshTimer = null;
+let _refreshRetryTimer = null;
+let _explicitLogout = false;
+const PENDING_KEY = 'refuge_pending_edits';
 
 async function loginWithEmail() {
   const email = document.getElementById('login-email').value.trim();
@@ -1342,13 +1477,64 @@ async function checkAuthCallback() {
 
 function tokenExpiryMs(token) {
   try {
-    const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    let part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (part.length % 4) part += '=';
     const payload = JSON.parse(atob(part));
     return payload.exp ? payload.exp * 1000 : 0;
   } catch (e) { return 0; }
 }
 
-async function refreshSession() {
+function tokenNeedsRefresh(token, nowMs) {
+  const exp = tokenExpiryMs(token);
+  if (!exp) return false;
+  return exp - (nowMs == null ? Date.now() : nowMs) < 60000;
+}
+
+function tokenIsExpired(token, nowMs) {
+  const exp = tokenExpiryMs(token);
+  if (!exp) return false;
+  return exp <= (nowMs == null ? Date.now() : nowMs);
+}
+
+function stopRefreshTimer() {
+  clearTimeout(_refreshTimer);
+  clearTimeout(_refreshRetryTimer);
+  _refreshTimer = null;
+  _refreshRetryTimer = null;
+}
+
+function clearStoredSession() {
+  stopRefreshTimer();
+  _authToken = null;
+  _authUser = null;
+  _refreshToken = null;
+  localStorage.removeItem('refuge_auth_token');
+  localStorage.removeItem('refuge_auth_refresh');
+  localStorage.removeItem('refuge_auth_user');
+}
+
+function scheduleTokenRefresh() {
+  clearTimeout(_refreshTimer);
+  if (!_authToken) return;
+  const exp = tokenExpiryMs(_authToken);
+  const delay = exp ? Math.max(5000, exp - Date.now() - 90000) : 15 * 60 * 1000;
+  _refreshTimer = setTimeout(refreshBeforeExpiry, delay);
+}
+
+async function refreshBeforeExpiry() {
+  if (!_authToken || _explicitLogout) return;
+  const ok = await refreshSession();
+  if (ok) { scheduleTokenRefresh(); return; }
+  if (_authToken && !tokenIsExpired(_authToken)) {
+    const exp = tokenExpiryMs(_authToken);
+    const delay = Math.max(15000, (exp || Date.now()) - Date.now() - 20000);
+    _refreshRetryTimer = setTimeout(refreshBeforeExpiry, delay);
+    return;
+  }
+  expireSession();
+}
+
+function refreshSession() {
   if (_refreshing) return _refreshing;
   _refreshing = (async () => {
     const rt = _refreshToken || localStorage.getItem('refuge_auth_refresh');
@@ -1359,7 +1545,8 @@ async function refreshSession() {
         headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: rt })
       });
-      const data = await res.json();
+      let data = {};
+      try { data = await res.json(); } catch (e) { data = {}; }
       if (!res.ok || !data.access_token) return false;
       _authToken = data.access_token;
       _refreshToken = data.refresh_token || rt;
@@ -1367,31 +1554,116 @@ async function refreshSession() {
       localStorage.setItem('refuge_auth_token', _authToken);
       localStorage.setItem('refuge_auth_refresh', _refreshToken);
       if (_authUser) localStorage.setItem('refuge_auth_user', JSON.stringify(_authUser));
+      scheduleTokenRefresh();
       return true;
     } catch (e) { return false; }
+    finally { _refreshing = null; }
   })();
-  try { return await _refreshing; }
-  finally { _refreshing = null; }
+  return _refreshing;
 }
 
-async function ensureFreshToken() {
-  if (!_authToken) return false;
-  const exp = tokenExpiryMs(_authToken);
-  if (exp && exp - Date.now() < 60000) {
-    const ok = await refreshSession();
-    if (!ok) return false;
+function showSessionBanner(message) {
+  const el = document.getElementById('session-banner');
+  if (!el) return;
+  el.textContent = message;
+  el.style.display = 'block';
+}
+
+function hideSessionBanner() {
+  const el = document.getElementById('session-banner');
+  if (el) el.style.display = 'none';
+}
+
+function pendingSnapshotExists() {
+  try { return !!localStorage.getItem(PENDING_KEY); } catch (e) { return false; }
+}
+
+function clearPendingSnapshot() {
+  try { localStorage.removeItem(PENDING_KEY); } catch (e) {}
+}
+
+function snapshotPendingEdits() {
+  try {
+    if (typeof S === 'undefined' || !S || typeof _dirty === 'undefined') return false;
+    const snap = { userId: _authUser && _authUser.id, at: Date.now(), tables: {} };
+    ['contacts', 'investments', 'activities', 'tasks', 'templates'].forEach(table => {
+      const ids = [...(_dirty[table] || [])];
+      if (!ids.length) return;
+      const rows = (S[table] || []).filter(r => r && ids.includes(r.id));
+      if (rows.length) snap.tables[table] = rows;
+    });
+    if (typeof _goalsDirty !== 'undefined' && _goalsDirty) snap.goals = S.goals;
+    if (typeof _settingsDirty !== 'undefined' && _settingsDirty) snap.settings = S.settings;
+    const pending = Object.keys(snap.tables).length > 0 || !!snap.goals || !!snap.settings;
+    if (pending) localStorage.setItem(PENDING_KEY, JSON.stringify(snap));
+    return pending;
+  } catch (e) { return false; }
+}
+
+function restorePendingEdits() {
+  let raw = null;
+  try { raw = localStorage.getItem(PENDING_KEY); } catch (e) { return false; }
+  if (!raw) return false;
+  let snap;
+  try { snap = JSON.parse(raw); } catch (e) { return false; }
+  if (snap.userId && _authUser && snap.userId !== _authUser.id) {
+    clearPendingSnapshot();
+    return false;
   }
-  return true;
+  if (snap.at && Date.now() - snap.at > 7 * 86400000) {
+    clearPendingSnapshot();
+    return false;
+  }
+  let n = 0;
+  Object.keys(snap.tables || {}).forEach(table => {
+    if (!S[table]) S[table] = [];
+    (snap.tables[table] || []).forEach(row => {
+      if (!row || !row.id) return;
+      const i = S[table].findIndex(x => x && x.id === row.id);
+      if (i >= 0) S[table][i] = Object.assign({}, S[table][i], row);
+      else S[table].push(row);
+      touch(table, row.id);
+      n++;
+    });
+  });
+  if (snap.goals && S.isAdmin === true) { S.goals = snap.goals; touchSettings('goals'); n++; }
+  if (snap.settings && S.isAdmin === true) {
+    S.settings = Object.assign({ radarHot: 14, radarWarm: 7, stallDays: 14, quietDays: 30, googleClientId: '' }, snap.settings);
+    touchSettings('settings');
+    n++;
+  }
+  if (!n) clearPendingSnapshot();
+  return n > 0;
+}
+
+// Refresh failed and the access token is no longer usable. Keep dirty rows.
+function expireSession() {
+  if (_explicitLogout) return;
+  const pending = snapshotPendingEdits() || pendingSnapshotExists();
+  clearStoredSession();
+  const screen = document.getElementById('login-screen');
+  if (screen) screen.classList.remove('hidden');
+  showSessionBanner(pending ? 'Not saved, sign in again' : 'Session expired. Sign in again.');
+  const txt = document.getElementById('sync-txt');
+  const dot = document.getElementById('sync-dot');
+  if (txt) txt.textContent = pending ? 'Not saved, sign in again' : 'Session expired';
+  if (dot) dot.style.background = '#A32D2D';
 }
 
 async function apiFetch(url, options) {
   if (!_authToken) {
-    logout();
-    throw new Error('Not signed in');
+    expireSession();
+    throw new Error('Session expired');
   }
-  const fresh = await ensureFreshToken();
-  if (!fresh || !_authToken) {
-    logout();
+  if (tokenNeedsRefresh(_authToken)) {
+    const ok = await refreshSession();
+    if (!ok && (!_authToken || tokenIsExpired(_authToken))) {
+      expireSession();
+      throw new Error('Session expired');
+    }
+  }
+  if (!_authToken) {
+    expireSession();
     throw new Error('Session expired');
   }
   const opts = options || {};
@@ -1399,17 +1671,18 @@ async function apiFetch(url, options) {
   headers.apikey = SUPABASE_KEY;
   headers.Authorization = 'Bearer ' + _authToken;
   if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
-  let res = await fetch(url, Object.assign({}, opts, { headers }));
+  const attempt = () => fetch(url, Object.assign({}, opts, { headers }));
+  let res = await attempt();
   if (res.status === 401) {
     const ok = await refreshSession();
     if (!ok) {
-      logout();
+      expireSession();
       throw new Error('Session expired');
     }
     headers.Authorization = 'Bearer ' + _authToken;
-    res = await fetch(url, Object.assign({}, opts, { headers }));
+    res = await attempt();
     if (res.status === 401) {
-      logout();
+      expireSession();
       throw new Error('Session expired');
     }
   }
@@ -1421,9 +1694,18 @@ async function tryRestoreSession() {
   const userStr = localStorage.getItem('refuge_auth_user');
   _refreshToken = localStorage.getItem('refuge_auth_refresh');
   if (!token || !userStr) return false;
+  _authToken = token;
+  let res = null;
   try {
-    let res = await fetch(AUTH + '/user', {
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + token }
+    if ((tokenNeedsRefresh(token) || tokenIsExpired(token)) && _refreshToken) {
+      const refreshed = await refreshSession();
+      if (!refreshed && tokenIsExpired(token)) {
+        clearStoredSession();
+        return false;
+      }
+    }
+    res = await fetch(AUTH + '/user', {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + (_authToken || token) }
     });
     if (res.status === 401 && _refreshToken) {
       const refreshed = await refreshSession();
@@ -1433,20 +1715,22 @@ async function tryRestoreSession() {
         });
       }
     }
-    if (res.ok) {
-      if (!_authToken) _authToken = token;
-      _authUser = await res.json();
-      localStorage.setItem('refuge_auth_user', JSON.stringify(_authUser));
-      localStorage.removeItem('refuge_crm_v1');
-      return true;
-    }
-  } catch (e) {}
-  localStorage.removeItem('refuge_auth_token');
-  localStorage.removeItem('refuge_auth_refresh');
-  localStorage.removeItem('refuge_auth_user');
+  } catch (e) {
+    _authToken = null;
+    return false;
+  }
+  if (res && res.ok) {
+    if (!_authToken) _authToken = token;
+    _authUser = await res.json();
+    localStorage.setItem('refuge_auth_user', JSON.stringify(_authUser));
+    localStorage.removeItem('refuge_crm_v1');
+    return true;
+  }
+  if (res && res.status === 401) {
+    clearStoredSession();
+    return false;
+  }
   _authToken = null;
-  _authUser = null;
-  _refreshToken = null;
   return false;
 }
 
@@ -1456,11 +1740,11 @@ function showLoginError(msg) {
 }
 
 function logout() {
-  _authToken = null; _authUser = null; _refreshToken = null;
-  localStorage.removeItem('refuge_auth_token');
-  localStorage.removeItem('refuge_auth_refresh');
-  localStorage.removeItem('refuge_auth_user');
+  _explicitLogout = true;
+  clearPendingSnapshot();
+  clearStoredSession();
   localStorage.removeItem('refuge_crm_v1');
+  hideSessionBanner();
   document.body.classList.remove('role-admin');
   if (typeof S !== 'undefined' && S) {
     S.isAdmin = false;
@@ -1468,7 +1752,8 @@ function logout() {
     S._guestUser = null;
     S.contacts = []; S.investments = []; S.activities = []; S.tasks = []; S.templates = [];
   }
-  ['contacts-grid','db-feed','db-radar','db-stats','db-expiring','tasks-list','pipe-board','investments-table','templates-list','notif-list','radar-list','cd-overview'].forEach(id => {
+  if (typeof clearDirty === 'function') clearDirty();
+  ['contacts-grid','db-feed','db-radar','db-stats','db-expiring','db-followups','tasks-list','fu-overdue','fu-today','fu-quiet','pipe-board','investments-table','templates-list','notif-list','radar-list','cd-overview'].forEach(id => {
     const el = document.getElementById(id); if (el) el.innerHTML = '';
   });
   document.getElementById('login-screen').classList.remove('hidden');
@@ -1487,6 +1772,8 @@ async function fetchIsAdmin() {
 }
 
 async function onLoginSuccess() {
+  _explicitLogout = false;
+  hideSessionBanner();
   document.getElementById('login-screen').classList.add('hidden');
   localStorage.removeItem('refuge_crm_v1');
   const email = ((_authUser && _authUser.email) || '').toLowerCase();
@@ -1519,13 +1806,30 @@ async function onLoginSuccess() {
   if (!_authToken) return;
   await loadState();
   if (!_authToken) return;
+  const restored = restorePendingEdits();
+  await loadAuthUsers();
   populateUserSelects();
   applyRoleUI();
   renderDashboard();
   updateBadges();
+  scheduleTokenRefresh();
   document.getElementById('goals-modal').addEventListener('click', e => { if (e.target.closest('.modal')) loadGoalsModal(); });
   _calYear = new Date().getFullYear(); _calMonth = new Date().getMonth();
+  if (restored) {
+    showToast('Saving edits from before sign-in…');
+    await syncToSupabase();
+    renderDashboard();
+    updateBadges();
+  }
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && _authToken && tokenNeedsRefresh(_authToken)) refreshBeforeExpiry();
+});
+window.addEventListener('storage', e => {
+  if (e.key === 'refuge_auth_token' && e.newValue) _authToken = e.newValue;
+  if (e.key === 'refuge_auth_refresh' && e.newValue) _refreshToken = e.newValue;
+});
 
 function updateHeaderUser() {
   const u = userById(S.currentUser);
@@ -1564,7 +1868,8 @@ const OFFERING_BY_ENTITY = {
 let S = {
   contacts:[],investments:[],activities:[],tasks:[],templates:[],
   goals:{capital:500000,investors:5,meetings:10,touchpoints:30},
-  settings:{radarHot:14,radarWarm:7,stallDays:14},
+  settings:{radarHot:14,radarWarm:7,stallDays:14,quietDays:30,googleClientId:''},
+  authUsers:[],
   currentUser:null,
   isAdmin:false,
   _guestUser:null,
@@ -1675,10 +1980,18 @@ function errorText(text,status){
   msg=String(msg||('HTTP '+status)).replace(/\s+/g,' ').trim();
   return msg.slice(0,240);
 }
+function persistData(r){
+  const data=Object.assign({},r);
+  delete data.owner_id;
+  return data;
+}
+function isSessionMessage(msg){
+  return /Session expired|Not saved, sign in again|Not signed in/.test(String(msg||''));
+}
 async function sbUpsert(table,records){
   if(!records||records.length===0)return {ok:true};
-  if(!_authToken){logout();return {ok:false,error:'Not signed in'};}
-  const rows=records.filter(r=>r&&r.id).map(r=>({id:r.id,data:r,updated_at:now()}));
+  if(!_authToken){expireSession();return {ok:false,error:'Not saved, sign in again'};}
+  const rows=records.filter(r=>r&&r.id).map(r=>({id:r.id,data:persistData(r),updated_at:now()}));
   if(!rows.length)return {ok:true};
   let res;
   try{res=await apiFetch(REST+'/'+table,{method:'POST',headers:{'Prefer':'resolution=merge-duplicates'},body:JSON.stringify(rows)});}
@@ -1692,18 +2005,28 @@ async function sbUpsert(table,records){
   return {ok:true};
 }
 async function sbLoad(table){
-  if(!_authToken){logout();throw new Error('Not signed in');}
-  const res=await apiFetch(REST+'/'+table+'?select=data&order=updated_at.asc');
+  if(!_authToken){expireSession();throw new Error('Not saved, sign in again');}
+  const ownerTable=table==='contacts'||table==='investments'||table==='activities'||table==='tasks';
+  const select=ownerTable?'id,owner_id,data':'data';
+  const res=await apiFetch(REST+'/'+table+'?select='+select+'&order=updated_at.asc');
   if(!res.ok){
     const text=await res.text();
     throw new Error(table+': '+errorText(text,res.status));
   }
   const rows=await res.json();
   if(!Array.isArray(rows))throw new Error(table+' returned unexpected data');
+  if(ownerTable){
+    return rows.map(r=>{
+      if(!r||!r.data)return null;
+      const obj=Object.assign({},r.data);
+      if(r.owner_id!==undefined)obj.owner_id=r.owner_id;
+      return obj;
+    }).filter(Boolean);
+  }
   return rows.map(r=>r.data).filter(Boolean);
 }
 async function sbDeleteRow(table,id){
-  if(!_authToken){logout();return {ok:false,error:'Not signed in'};}
+  if(!_authToken){expireSession();return {ok:false,error:'Not saved, sign in again'};}
   if(!id)return {ok:false,error:'Missing id'};
   let res;
   try{
@@ -1748,6 +2071,7 @@ function clearDirty(){
 let _saveTimer=null;
 function saveState(){
   localStorage.removeItem('refuge_crm_v1');
+  snapshotPendingEdits();
   clearTimeout(_saveTimer);
   _saveTimer=setTimeout(syncToSupabase,1500);
 }
@@ -1770,7 +2094,7 @@ async function flushTable(table){
   return result;
 }
 async function syncToSupabase(){
-  if(!_authToken){logout();return false;}
+  if(!_authToken){expireSession();return false;}
   const jobs=[];
   ['contacts','investments','activities','tasks'].forEach(table=>{
     if(_dirty[table]&&_dirty[table].size)jobs.push(flushTable(table));
@@ -1801,24 +2125,32 @@ async function syncToSupabase(){
     const failed=results.filter(r=>!r||r.ok===false);
     if(failed.length){
       const detail=failed.map(r=>r&&r.error).filter(Boolean).join(' · ')||'Save was rejected';
+      if(isSessionMessage(detail)){expireSession();return false;}
       console.error('Sync error:',detail);
       setSyncStatus('error',detail);
       showToast('Save failed: '+detail,{error:true});
       return false;
     }
     setSyncStatus('ok');
+    if(typeof hasPendingEdits==='function'?!hasPendingEdits():true)clearPendingSnapshot();
     if(S.isAdmin===true)maybeTakeBackup();
     return true;
   }catch(e){
+    if(!_authToken||isSessionMessage(e&&e.message)){expireSession();return false;}
     console.error('Sync error:',e);
     setSyncStatus('error',e.message||String(e));
     showToast('Save failed: '+(e.message||e),{error:true});
     return false;
   }
 }
+function hasPendingEdits(){
+  const tables=['contacts','investments','activities','tasks','templates'];
+  if(tables.some(t=>_dirty[t]&&_dirty[t].size))return true;
+  return !!(_goalsDirty||_settingsDirty);
+}
 async function loadState(){
   localStorage.removeItem('refuge_crm_v1');
-  if(!_authToken){logout();return;}
+  if(!_authToken){expireSession();return;}
   clearDirty();
   try{
     setSyncStatus('syncing');
@@ -1834,7 +2166,7 @@ async function loadState(){
     const goals=appSettings.find(r=>r&&r.id==='goals');
     const settings=appSettings.find(r=>r&&r.id==='settings');
     if(goals)S.goals=goals.data||S.goals;
-    if(settings)S.settings=settings.data||S.settings;
+    if(settings)S.settings=Object.assign({radarHot:14,radarWarm:7,stallDays:14,quietDays:30,googleClientId:''},settings.data||{});
     let renamedTemplate=false;
     S.templates.forEach(t=>{
       if(t&&t.name==='Sam → Julie Handoff'){
@@ -1941,8 +2273,8 @@ function showView(id){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   const v=document.getElementById('view-'+id);if(v)v.classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n=>{if(n.textContent.trim().toLowerCase().startsWith(id.split('-')[0].toLowerCase()))n.classList.add('active');});
-  const renders={dashboard:renderDashboard,contacts:renderContacts,pipeline:renderPipeline,investments:renderInvestments,tasks:renderTasks,calendar:renderCalendar,radar:renderRadar,templates:renderTemplates,reports:renderReports,compliance:renderCompliance,settings:renderSettings};
+  document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('data-view')===id)n.classList.add('active');});
+  const renders={dashboard:renderDashboard,contacts:renderContacts,pipeline:renderPipeline,investments:renderInvestments,followups:renderFollowups,tasks:renderTasks,calendar:renderCalendar,radar:renderRadar,templates:renderTemplates,reports:renderReports,compliance:renderCompliance,settings:renderSettings};
   if(renders[id])renders[id]();
 }
 function switchTab(group,tab){
@@ -1967,6 +2299,40 @@ document.addEventListener('click',e=>{
 // ═══════════════════════════════════════════════════════════
 // POPULATE SELECTS
 // ═══════════════════════════════════════════════════════════
+function authUserLabel(u){
+  if(!u)return 'Unassigned';
+  const known=USERS.find(x=>(x.email||'').toLowerCase()===(u.email||'').toLowerCase());
+  const name=known?known.name:(u.display_name||u.email||'User');
+  return u.email?name+' ('+u.email+')':name;
+}
+function authUserName(id){
+  if(!id)return 'Unassigned';
+  const u=(S.authUsers||[]).find(x=>x.id===id);
+  if(!u)return 'Unassigned';
+  const known=USERS.find(x=>(x.email||'').toLowerCase()===(u.email||'').toLowerCase());
+  return known?known.name:(u.display_name||u.email||'User');
+}
+async function loadAuthUsers(){
+  S.authUsers=[];
+  if(S.isAdmin!==true||!_authToken)return;
+  try{
+    const res=await apiFetch(REST+'/rpc/list_auth_users',{method:'POST',body:'{}'});
+    if(!res.ok){
+      const text=await res.text();
+      showToast('Owner list unavailable: '+errorText(text,res.status),{error:true});
+      return;
+    }
+    const data=await res.json();
+    S.authUsers=Array.isArray(data)?data:[];
+  }catch(e){
+    if(!isSessionMessage(e&&e.message))showToast('Owner list unavailable',{error:true});
+  }
+}
+function fillOwnerSelect(el,selectedId){
+  if(!el)return;
+  const cur=selectedId==null?el.value:selectedId;
+  el.innerHTML='<option value="">Owner…</option>'+(S.authUsers||[]).map(u=>'<option value="'+esc(u.id)+'"'+(u.id===cur?' selected':'')+'>'+esc(authUserLabel(u))+'</option>').join('');
+}
 function populateUserSelects(){
   const fundraisers=USERS.filter(u=>u.role!=='admin');
   ['nc-assignee','task-assignee-inp','pipe-fundraiser','contact-assignee'].forEach(id=>{
@@ -1977,6 +2343,14 @@ function populateUserSelects(){
     const el=document.getElementById(id);if(!el)return;
     USERS.forEach(u=>{if(!el.querySelector('option[value="'+u.id+'"]')){const o=document.createElement('option');o.value=u.id;o.textContent=u.name;el.appendChild(o);}});
   });
+  fillOwnerSelect(document.getElementById('bulk-owner'));
+  const fu=document.getElementById('fu-person');
+  if(fu){
+    const cur=fu.value||'me';
+    const extras=USERS.map(u=>'<option value="'+esc(u.id)+'">'+esc(u.name)+'</option>').join('');
+    fu.innerHTML='<option value="me">My follow-ups</option><option value="all">Everyone</option>'+extras;
+    fu.value=[...fu.options].some(o=>o.value===cur)?cur:'me';
+  }
   ['inv-contact-select','task-contact-inp'].forEach(id=>{
     const el=document.getElementById(id);if(!el)return;
     const cur=el.value;el.innerHTML='<option value="">Select investor...</option>';
@@ -2181,10 +2555,19 @@ async function deleteInvestment(id){
 
 function saveInvestmentEdits(){
   const inv=S.investments.find(x=>x.id===S._viewingInvestment);if(!inv)return;
+  const prevStage=inv.stage;
   ['entity','offering','stage','circle','offering506','flatRate','flatTerm','startDate','expDate','capitalCallDate','ppmVersion','subStatus','notes'].forEach(f=>{const el=document.getElementById('invde-'+f);if(el)inv[f]=el.value;});
   const am=document.getElementById('invde-amount');if(am)inv.amount=parseFloat(am.value.replace(/[^0-9.]/g,''))||0;
+  const stageChanged=inv.stage!==prevStage;
+  if(stageChanged){
+    if(!inv.stageHistory)inv.stageHistory=[];
+    inv.stageHistory.push({stage:inv.stage,date:today(),user:S.currentUser});
+    if(inv.isProspectPlaceholder&&inv.stage!=='Prospect')inv.isProspectPlaceholder=false;
+    logActivity({contactId:inv.contactId,type:'note',notes:'Stage changed: '+prevStage+' → '+inv.stage,date:today(),user:S.currentUser});
+  }
   touch('investments',inv.id);
   saveState();renderInvestmentDetail(inv.id);renderPipeline();renderDashboard();showToast('Investment saved');
+  if(stageChanged)maybePromptNextStep(inv.contactId);
 }
 
 // ── STAGE ADVANCEMENT ───────────────────────────────────────
@@ -2224,6 +2607,7 @@ function confirmAdvanceStage(){
   if(S._viewingContact===inv.contactId)renderContactDetail(inv.contactId);
   if(S._viewingInvestment===invId)renderInvestmentDetail(invId);
   showToast('Advanced to '+to);_advanceData=null;
+  maybePromptNextStep(inv.contactId);
 }
 
 // ── AUTO FOLLOW-UP TASKS ─────────────────────────────────────
@@ -2251,6 +2635,9 @@ function autoCreateFollowupTask(contactId,stage,invId){
 // ── ACTIVITY ─────────────────────────────────────────────────
 function logActivity(act){
   const row={id:uid(),contactId:act.contactId,type:act.type,notes:act.notes,date:act.date||today(),timestamp:now(),user:act.user||S.currentUser};
+  if(act.subject)row.subject=act.subject;
+  if(act.snippet)row.snippet=act.snippet;
+  if(act.gmailStatus)row.gmailStatus=act.gmailStatus;
   S.activities.unshift(row);
   touch('activities',row.id);
   const c=S.contacts.find(x=>x.id===act.contactId);
@@ -2265,6 +2652,7 @@ function saveActivity(){
   const fu=document.getElementById('act-followup').value;
   if(fu){const c=S.contacts.find(x=>x.id===contactId);const task={id:uid(),title:'Follow-up: '+(c?c.first+' '+c.last:'Investor'),assignee:S.currentUser,due:fu,contactId,type:'follow-up',done:false,addedDate:today(),notes:''};S.tasks.push(task);touch('tasks',task.id);}
   saveState();closeModal('log-activity-modal');renderDashboard();if(S._viewingContact===contactId)renderContactDetail(contactId);updateBadges();showToast('Activity logged');
+  maybePromptNextStep(contactId);
 }
 function quickLogActivity(){
   const contactId=S._viewingContact||'';
@@ -2285,6 +2673,8 @@ function toggleTask(id){
   t.done=!t.done;if(t.done)t.completedDate=today();else delete t.completedDate;
   touch('tasks',t.id);
   saveState();renderTasks();updateBadges();
+  if(S._viewingContact&&S._viewingContact===t.contactId)renderContactDetail(t.contactId);
+  if(t.done)maybePromptNextStep(t.contactId);
 }
 async function deleteTask(id){
   if(!confirm('Delete this task?'))return;
@@ -2292,10 +2682,165 @@ async function deleteTask(id){
   forgetDirty('tasks',id);
   const result=await sbDeleteRow('tasks',id);
   if(!result.ok){showToast('Delete failed: '+result.error,{error:true});return;}
+  const removed=S.tasks.find(x=>x.id===id);
   S.tasks=S.tasks.filter(x=>x.id!==id);
   renderTasks();updateBadges();showToast('Task deleted');
+  if(removed&&!removed.done)maybePromptNextStep(removed.contactId);
 }
 function taskDueClass(due,done){if(done)return'due-ok';if(!due)return'';const d=daysUntil(due);if(d<0)return'due-overdue';if(d===0)return'due-today';if(d<=3)return'due-soon';return'due-ok';}
+
+// Active pipeline stages are STAGES. DEAD_STAGES (Cold, Declined, On Hold, Exited)
+// are this CRM's closed / lost / archived stages and do not require a next step.
+function contactInActivePipeline(c){
+  if(!c)return false;
+  const invs=S.investments.filter(i=>i.contactId===c.id);
+  if(!invs.length)return true;
+  return invs.some(i=>STAGES.includes(i.stage));
+}
+function futureOpenTasks(contactId){
+  const tdy=today();
+  return S.tasks.filter(t=>t&&t.contactId===contactId&&!t.done&&t.due&&t.due>=tdy);
+}
+function needsNextStep(c){
+  if(!c||c.dnc)return false;
+  if(!contactInActivePipeline(c))return false;
+  return futureOpenTasks(c.id).length===0;
+}
+function addDays(n){
+  const d=new Date();
+  d.setUTCDate(d.getUTCDate()+n);
+  return d.toISOString().split('T')[0];
+}
+function quietDays(){
+  const n=parseInt(S.settings&&S.settings.quietDays,10);
+  return (n>=1&&n<=3650)?n:30;
+}
+function lastActivityDate(contactId){
+  let best='';
+  S.activities.forEach(a=>{
+    if(!a||a.contactId!==contactId)return;
+    const d=String(a.date||'').slice(0,10);
+    if(d&&d>best)best=d;
+  });
+  return best;
+}
+function isGoneQuiet(c){
+  if(!c||c.dnc)return false;
+  if(!contactInActivePipeline(c))return false;
+  const last=lastActivityDate(c.id)||String(c.addedDate||'').slice(0,10);
+  if(!last)return true;
+  return daysAgo(last)>=quietDays();
+}
+function taskForPerson(t,personId){
+  if(!t||t.done)return false;
+  if(t.assignee)return t.assignee===personId;
+  return personId===S.currentUser;
+}
+function contactForPerson(c,personId){
+  if(!c)return false;
+  if(c.assignee)return c.assignee===personId;
+  return personId===S.currentUser;
+}
+function followupPersonId(){
+  if(S.isAdmin!==true)return S.currentUser;
+  const sel=document.getElementById('fu-person');
+  const v=sel?sel.value:'me';
+  if(!v||v==='me')return S.currentUser;
+  if(v==='all')return null;
+  return v;
+}
+function collectFollowups(personId){
+  const overdue=[];const dueToday=[];const quiet=[];
+  S.tasks.forEach(t=>{
+    if(!t||t.done||!t.due)return;
+    if(personId&&!taskForPerson(t,personId))return;
+    const d=daysUntil(t.due);
+    if(d<0)overdue.push(t);
+    else if(d===0)dueToday.push(t);
+  });
+  overdue.sort((a,b)=>String(a.due).localeCompare(String(b.due)));
+  dueToday.sort((a,b)=>String(a.title||'').localeCompare(String(b.title||'')));
+  visibleContacts().forEach(c=>{
+    if(personId&&!contactForPerson(c,personId))return;
+    if(isGoneQuiet(c))quiet.push(c);
+  });
+  quiet.sort((a,b)=>{
+    const da=daysAgo(lastActivityDate(a.id)||a.addedDate);
+    const db=daysAgo(lastActivityDate(b.id)||b.addedDate);
+    return db-da;
+  });
+  return {overdue,dueToday,quiet};
+}
+let _nextStepContact=null;
+function maybePromptNextStep(contactId){
+  if(!contactId)return;
+  const c=S.contacts.find(x=>x.id===contactId);
+  if(!c||!needsNextStep(c))return;
+  _nextStepContact=contactId;
+  const who=document.getElementById('ns-who');
+  if(who)who.textContent=c.first+' '+c.last+' is in an active stage and has no upcoming task. The badge stays if you dismiss this.';
+  const action=document.getElementById('ns-action');if(action)action.value='';
+  const date=document.getElementById('ns-date');if(date)date.value=addDays(2);
+  const sel=document.getElementById('ns-template');
+  if(sel){
+    sel.innerHTML='<option value="">None</option>'+(S.templates||[]).map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join('');
+  }
+  openModal('next-step-modal');
+}
+function setNextStepDate(days){const el=document.getElementById('ns-date');if(el)el.value=addDays(days);}
+function nsTemplateChanged(){
+  const id=document.getElementById('ns-template').value;
+  const t=S.templates.find(x=>x.id===id);
+  const action=document.getElementById('ns-action');
+  if(t&&action&&!action.value.trim())action.value='Send: '+(t.subject||t.name);
+}
+function dismissNextStep(){closeModal('next-step-modal');}
+function saveNextStep(){
+  const contactId=_nextStepContact;
+  const title=(document.getElementById('ns-action').value||'').trim();
+  const due=document.getElementById('ns-date').value;
+  if(!contactId||!title||!due){alert('Enter an action and a due date.');return;}
+  const c=S.contacts.find(x=>x.id===contactId);
+  const templateId=document.getElementById('ns-template').value||'';
+  const task={id:uid(),title,assignee:(c&&c.assignee)||S.currentUser,due,contactId,type:'follow-up',notes:'',done:false,addedDate:today(),templateId};
+  S.tasks.push(task);touch('tasks',task.id);saveState();
+  closeModal('next-step-modal');
+  renderTasks();updateBadges();renderContacts();
+  if(document.getElementById('view-followups')&&document.getElementById('view-followups').classList.contains('active'))renderFollowups();
+  if(document.getElementById('view-pipeline')&&document.getElementById('view-pipeline').classList.contains('active'))renderPipeline();
+  if(S._viewingContact===contactId)renderContactDetail(contactId);
+  showToast('Next step set');
+}
+function renderFollowupRows(list,empty){
+  if(!list.length)return '<div class="empty" style="padding:16px;"><div class="empty-desc">'+esc(empty)+'</div></div>';
+  return list.map(t=>{
+    const c=S.contacts.find(x=>x.id===t.contactId);
+    const who=c?esc(c.first)+' '+esc(c.last):'';
+    return '<div class="fu-item" onclick="openContactDetail(\''+jsAttr(t.contactId||'')+'\')"><div style="flex:1;"><div style="font-size:13px;font-weight:600;">'+esc(t.title||'Task')+'</div><div style="font-size:11px;color:var(--ink-light);">'+who+(t.due?' · '+esc(fmtDate(t.due)):'')+'</div></div><span class="task-due '+taskDueClass(t.due,false)+'">'+(daysUntil(t.due)<0?(Math.abs(daysUntil(t.due))+'d overdue'):'Today')+'</span></div>';
+  }).join('');
+}
+function renderFollowups(){
+  const personId=followupPersonId();
+  const data=collectFollowups(personId);
+  const stats=document.getElementById('fu-stats');
+  if(stats){
+    stats.innerHTML='<div class="stat-card"><div class="stat-lbl" style="color:var(--rd);">Overdue</div><div class="stat-val">'+data.overdue.length+'</div><div class="stat-sub">Open tasks</div></div>'
+      +'<div class="stat-card"><div class="stat-lbl" style="color:var(--am);">Due today</div><div class="stat-val">'+data.dueToday.length+'</div><div class="stat-sub">Open tasks</div></div>'
+      +'<div class="stat-card"><div class="stat-lbl">Gone quiet</div><div class="stat-val">'+data.quiet.length+'</div><div class="stat-sub">No activity in '+quietDays()+'d</div></div>';
+  }
+  const ql=document.getElementById('fu-quiet-label');
+  if(ql)ql.textContent='No logged activity in '+quietDays()+' days';
+  const od=document.getElementById('fu-overdue');if(od)od.innerHTML=renderFollowupRows(data.overdue,'Nothing overdue.');
+  const td=document.getElementById('fu-today');if(td)td.innerHTML=renderFollowupRows(data.dueToday,'Nothing due today.');
+  const q=document.getElementById('fu-quiet');
+  if(q){
+    q.innerHTML=data.quiet.length?data.quiet.map(c=>{
+      const last=lastActivityDate(c.id)||c.addedDate||'';
+      const days=last?daysAgo(last):'';
+      return '<div class="fu-item" onclick="openContactDetail(\''+jsAttr(c.id)+'\')"><div class="av av-teal" style="width:30px;height:30px;font-size:11px;">'+personInitials(c.first,c.last)+'</div><div style="flex:1;"><div style="font-size:13px;font-weight:600;">'+esc(c.first)+' '+esc(c.last)+'</div><div style="font-size:11px;color:var(--ink-light);">'+esc(contactStage(c))+(last?' · last activity '+esc(fmtDate(last)):'')+'</div></div><span class="radar-days r-hot">'+(days===''?'—':days+'d')+'</span></div>';
+    }).join(''):'<div class="empty" style="padding:16px;"><div class="empty-desc">No active investors have gone quiet.</div></div>';
+  }
+}
 </script><script>
 // ═══════════════════════════════════════════════════════════
 // TEMPLATES & GMAIL
@@ -2312,22 +2857,25 @@ function defaultTemplates(){return[
   {id:uid(),name:'Re-engagement (Cold Lead)',stage:'Prospect',role:'fundraiser',subject:'Still here if the timing is ever right',body:'Hi [INVESTOR_NAME],\n\nI know life gets busy and timing isn\'t always right. I wanted to check in one more time before I stop following up.\n\nWishing you well either way,\n[FUNDRAISER_NAME]'},
 ];}
 
-function mergeTemplate(t,contactId){
-  let body=t.body,subject=t.subject||'';
+function applyMergeText(text,contactId){
+  let out=String(text||'');
   const u=userById(S.currentUser);
   if(contactId){
     const c=S.contacts.find(x=>x.id===contactId);
     const inv=S.investments.filter(x=>x.contactId===contactId&&!x.isProspectPlaceholder);
     if(c){
       const name=c.first+' '+c.last;
-      body=body.replace(/\[INVESTOR_NAME\]/g,name);subject=subject.replace(/\[INVESTOR_NAME\]/g,name);
-      body=body.replace(/\[AMOUNT\]/g,fmt$(inv[0]&&inv[0].amount));subject=subject.replace(/\[AMOUNT\]/g,fmt$(inv[0]&&inv[0].amount));
-      body=body.replace(/\[OFFERING\]/g,(inv[0]&&inv[0].offering)||'');subject=subject.replace(/\[OFFERING\]/g,(inv[0]&&inv[0].offering)||'');
+      out=out.replace(/\[INVESTOR_NAME\]/g,name);
+      out=out.replace(/\[AMOUNT\]/g,fmt$(inv[0]&&inv[0].amount));
+      out=out.replace(/\[OFFERING\]/g,(inv[0]&&inv[0].offering)||'');
     }
   }
-  body=body.replace(/\[FUNDRAISER_NAME\]/g,u.name);body=body.replace(/\[FUNDRAISER_EMAIL\]/g,u.email);
-  subject=subject.replace(/\[FUNDRAISER_NAME\]/g,u.name);
-  return{body,subject};
+  out=out.replace(/\[FUNDRAISER_NAME\]/g,u.name||'');
+  out=out.replace(/\[FUNDRAISER_EMAIL\]/g,u.email||'');
+  return out;
+}
+function mergeTemplate(t,contactId){
+  return {body:applyMergeText(t&&t.body,contactId),subject:applyMergeText(t&&t.subject,contactId)};
 }
 
 function saveTemplate(){
@@ -2371,6 +2919,146 @@ function openInGmail(id,contactId){
     '&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
   window.open(url,'_blank');
 }
+function gmailClientId(){return String((S.settings&&S.settings.googleClientId)||'').trim();}
+function encodeMimeHeader(value){
+  const s=String(value||'').replace(/[\r\n]/g,' ');
+  if(/^[\x00-\x7F]*$/.test(s))return s;
+  return '=?UTF-8?B?'+btoa(unescape(encodeURIComponent(s)))+'?=';
+}
+function buildCrmGmailRaw(to,subject,body){
+  const msg=['To: '+String(to||'').replace(/[\r\n]/g,''),'Subject: '+encodeMimeHeader(subject),'MIME-Version: 1.0','Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: 8bit','',String(body||'').replace(/\r?\n/g,'\r\n')].join('\r\n');
+  const bytes=new TextEncoder().encode(msg);
+  let bin='';
+  for(let i=0;i<bytes.length;i++)bin+=String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+let _gmailToken=null,_gmailTokenExp=0;
+function ensureGmailToken(){
+  return new Promise((resolve,reject)=>{
+    if(_gmailToken&&_gmailTokenExp-Date.now()>60000){resolve(_gmailToken);return;}
+    const clientId=gmailClientId();
+    if(!clientId){reject(new Error('no-client'));return;}
+    if(!(window.google&&google.accounts&&google.accounts.oauth2)){reject(new Error('Google sign-in is still loading. Try again in a moment.'));return;}
+    const client=google.accounts.oauth2.initTokenClient({
+      client_id:clientId,
+      scope:'https://www.googleapis.com/auth/gmail.send',
+      callback:(resp)=>{
+        if(!resp||resp.error){reject(new Error((resp&&resp.error)||'Gmail permission was denied'));return;}
+        _gmailToken=resp.access_token;
+        _gmailTokenExp=Date.now()+((resp.expires_in||3600)*1000);
+        resolve(_gmailToken);
+      }
+    });
+    client.requestAccessToken({prompt:_gmailToken?'':'consent'});
+  });
+}
+async function gmailApiSend(msg){
+  const token=await ensureGmailToken();
+  const raw=buildCrmGmailRaw(msg.to,msg.subject,msg.body);
+  const res=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({raw})});
+  if(!res.ok){const text=await res.text();throw new Error(errorText(text,res.status));}
+}
+function logSentEmail(contactId,subject,body,status){
+  const snippet=String(body||'').replace(/\s+/g,' ').trim().slice(0,240);
+  const prefix=status==='sent'?'Email sent':'Email opened in Gmail';
+  logActivity({contactId,type:'email',notes:prefix+': '+(subject||'(no subject)')+(snippet?'\n'+snippet:''),date:today(),user:S.currentUser,subject:subject||'',snippet,gmailStatus:status==='sent'?'sent':'opened'});
+}
+function createNextStepTask(contactId,title,due,templateId){
+  const c=S.contacts.find(x=>x.id===contactId);
+  const task={id:uid(),title:title||'Follow up',assignee:(c&&c.assignee)||S.currentUser,due:due||addDays(2),contactId,type:'follow-up',notes:'',done:false,addedDate:today(),templateId:templateId||''};
+  S.tasks.push(task);touch('tasks',task.id);
+  return task;
+}
+function currentSendContactId(){const el=document.getElementById('send-email-contact');return el?el.value:'';}
+function sendEmailContactChanged(){
+  const c=S.contacts.find(x=>x.id===currentSendContactId());
+  const to=document.getElementById('send-email-to');if(to)to.value=c?(c.email||''):'';
+  const id=document.getElementById('send-email-template').value;
+  if(!id)return;
+  const t=S.templates.find(x=>x.id===id);if(!t)return;
+  const merged=mergeTemplate(t,currentSendContactId());
+  document.getElementById('send-email-subject').value=merged.subject;
+  document.getElementById('send-email-body').value=merged.body;
+}
+function sendEmailTemplateChanged(){
+  sendEmailContactChanged();
+}
+function openSendEmail(opts){
+  opts=opts||{};
+  const contactSel=document.getElementById('send-email-contact');
+  const wrap=document.getElementById('send-email-contact-wrap');
+  contactSel.innerHTML=visibleContacts().map(c=>'<option value="'+esc(c.id)+'">'+esc((c.first||'')+' '+(c.last||''))+(c.email?' ('+esc(c.email)+')':'')+'</option>').join('');
+  if(opts.contactId&&[...contactSel.options].some(o=>o.value===opts.contactId)){
+    contactSel.value=opts.contactId;
+    wrap.style.display='none';
+  }else wrap.style.display='block';
+  const tmpl=document.getElementById('send-email-template');
+  tmpl.innerHTML='<option value="">Custom email</option>'+(S.templates||[]).map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join('');
+  tmpl.value=opts.templateId||'';
+  document.getElementById('send-email-subject').value='';
+  document.getElementById('send-email-body').value='';
+  document.getElementById('send-email-error').style.display='none';
+  document.getElementById('send-email-fallback').style.display='none';
+  document.getElementById('send-email-go').textContent=gmailClientId()?'Send with Gmail':'Open in Gmail';
+  document.getElementById('send-email-mode').textContent=gmailClientId()
+    ?'Sends from your Google account and logs the email on this investor.'
+    :'No Google client ID is saved yet. This opens Gmail and logs the email as opened in Gmail.';
+  sendEmailTemplateChanged();
+  const c=S.contacts.find(x=>x.id===currentSendContactId());
+  const box=document.getElementById('send-email-next');
+  box.checked=!!(c&&needsNextStep(c));
+  document.getElementById('send-email-next-fields').style.display=box.checked?'block':'none';
+  document.getElementById('send-email-next-action').value='Follow up on this email';
+  document.getElementById('send-email-next-date').value=addDays(2);
+  openModal('send-email-modal');
+}
+function finishSentEmail(contactId,subject,body,status){
+  logSentEmail(contactId,subject,body,status);
+  let madeTask=false;
+  if(document.getElementById('send-email-next').checked){
+    const title=(document.getElementById('send-email-next-action').value||'').trim()||'Follow up on this email';
+    const due=document.getElementById('send-email-next-date').value||addDays(2);
+    createNextStepTask(contactId,title,due,document.getElementById('send-email-template').value);
+    madeTask=true;
+  }
+  saveState();
+  closeModal('send-email-modal');
+  updateBadges();
+  renderContacts();
+  if(S._viewingContact===contactId)renderContactDetail(contactId);
+  showToast(status==='sent'?'Email sent and logged':'Opened in Gmail and logged');
+  if(!madeTask)maybePromptNextStep(contactId);
+}
+async function submitSendEmail(mode){
+  const contactId=currentSendContactId();
+  const c=S.contacts.find(x=>x.id===contactId);
+  if(!c){alert('Choose an investor.');return;}
+  if(c.dnc&&!confirm(c.first+' '+c.last+' is marked Do Not Contact. Continue?'))return;
+  const to=(c.email||'').trim();
+  if(!to){alert('This investor has no email address.');return;}
+  const subject=applyMergeText(document.getElementById('send-email-subject').value,contactId);
+  const body=applyMergeText(document.getElementById('send-email-body').value,contactId);
+  if(!subject.trim()&&!body.trim()){alert('Write a subject or a body.');return;}
+  const errEl=document.getElementById('send-email-error');
+  errEl.style.display='none';
+  if(mode!=='compose'&&gmailClientId()){
+    try{await gmailApiSend({to,subject,body});}
+    catch(e){
+      errEl.textContent='Gmail did not send this. '+String(e.message||e);
+      errEl.style.display='block';
+      document.getElementById('send-email-fallback').style.display='inline-flex';
+      return;
+    }
+    finishSentEmail(contactId,subject,body,'sent');
+    return;
+  }
+  const url='https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(to)+'&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  window.open(url,'_blank');
+  finishSentEmail(contactId,subject,body,'opened');
+}
+document.getElementById('send-email-next').addEventListener('change',function(){
+  document.getElementById('send-email-next-fields').style.display=this.checked?'block':'none';
+});
 
 // ── GOALS ─────────────────────────────────────────────────────
 function saveGoals(){
@@ -2383,9 +3071,12 @@ function loadGoalsModal(){document.getElementById('goal-capital').value=S.goals.
 
 // ── NOTIFICATIONS & BADGES ────────────────────────────────────
 function updateBadges(){
-  const od=S.tasks.filter(t=>!t.done&&t.due&&daysUntil(t.due)<0&&(!t.assignee||t.assignee===S.currentUser)).length;
-  const td=S.tasks.filter(t=>!t.done&&t.due&&daysUntil(t.due)===0&&(!t.assignee||t.assignee===S.currentUser)).length;
-  const bt=document.getElementById('badge-tasks');bt.textContent=od+td||'';bt.style.display=od+td?'':'none';
+  const mine=collectFollowups(S.currentUser);
+  const n=mine.overdue.length+mine.dueToday.length;
+  const bt=document.getElementById('badge-tasks');bt.textContent=n||'';bt.style.display=n?'':'none';
+  const bf=document.getElementById('badge-followups');
+  const fn=n+mine.quiet.length;
+  if(bf){bf.textContent=fn||'';bf.style.display=fn?'':'none';}
   document.getElementById('badge-contacts').textContent=visibleContacts().length;
   const nc=buildNotifications().length;const nel=document.getElementById('notif-count');nel.textContent=nc;nel.style.display=nc?'inline':'none';
 }
@@ -2447,7 +3138,16 @@ function renderDashboard(){
   const overdue_tasks=S.tasks.filter(t=>!t.done&&t.due&&daysUntil(t.due)<0&&(!t.assignee||t.assignee===S.currentUser));
   const myTasks=[...overdue_tasks,...today_tasks];
   const alert_el=document.getElementById('db-tasks-alert');
-  alert_el.innerHTML=myTasks.length?'<div class="alert-box alert-orange" style="margin-bottom:14px;">⏰ You have <strong>'+myTasks.length+'</strong> task'+(myTasks.length>1?'s':'')+' due today or overdue. <button class="btn btn-xs" style="margin-left:8px;" onclick="showView(\'tasks\')">View Tasks →</button></div>':'';
+  alert_el.innerHTML=myTasks.length?'<div class="alert-box alert-orange" style="margin-bottom:14px;">⏰ You have <strong>'+myTasks.length+'</strong> task'+(myTasks.length>1?'s':'')+' due today or overdue. <button class="btn btn-xs" style="margin-left:8px;" onclick="showView(\'followups\')">View Follow-ups →</button></div>':'';
+  const fuCard=document.getElementById('db-followups');
+  if(fuCard){
+    const fu=collectFollowups(S.currentUser);
+    fuCard.innerHTML='<div class="card"><div class="card-hdr"><div class="card-title">Follow-ups</div><button class="btn btn-xs btn-ghost" onclick="showView(\'followups\')">Open →</button></div><div class="g3">'
+      +'<div class="stat-card" style="cursor:pointer;" onclick="showView(\'followups\')"><div class="stat-lbl" style="color:var(--rd);">Overdue</div><div class="stat-val">'+fu.overdue.length+'</div><div class="stat-sub">Your open tasks</div></div>'
+      +'<div class="stat-card" style="cursor:pointer;" onclick="showView(\'followups\')"><div class="stat-lbl" style="color:var(--am);">Due today</div><div class="stat-val">'+fu.dueToday.length+'</div><div class="stat-sub">Your open tasks</div></div>'
+      +'<div class="stat-card" style="cursor:pointer;" onclick="showView(\'followups\')"><div class="stat-lbl">Gone quiet</div><div class="stat-val">'+fu.quiet.length+'</div><div class="stat-sub">No activity in '+quietDays()+' days</div></div>'
+      +'</div></div>';
+  }
 
   const realInvs=invs.filter(i=>!i.isProspectPlaceholder);
   const totalCap=realInvs.filter(i=>i.stage==='Active Investor').reduce((s,i)=>s+(i.amount||0),0);
@@ -2511,10 +3211,12 @@ function renderContacts(){
   const stageF=(document.getElementById('contact-stage')&&document.getElementById('contact-stage').value)||'';
   const assigneeF=(document.getElementById('contact-assignee')&&document.getElementById('contact-assignee').value)||'';
   const sortF=(document.getElementById('contact-sort')&&document.getElementById('contact-sort').value)||'name';
+  const nextF=(document.getElementById('contact-next')&&document.getElementById('contact-next').value)||'';
   let list=visibleContacts().filter(c=>{
     if(search&&!(c.first+' '+c.last+' '+(c.email||'')+' '+(c.phone||'')+' '+(c.company||'')).toLowerCase().includes(search))return false;
     if(assigneeF&&c.assignee!==assigneeF)return false;
     if(stageF&&contactStage(c)!==stageF)return false;
+    if(nextF==='missing'&&!needsNextStep(c))return false;
     if(entityF&&!S.investments.find(i=>i.contactId===c.id&&i.entity===entityF&&!i.isProspectPlaceholder))return false;
     return true;
   });
@@ -2537,7 +3239,9 @@ function renderContacts(){
     const coCount=(c.coInvestors||[]).length;
     const sameCompany=c.company&&companyMap[c.company]&&companyMap[c.company].length>1;
     const assigneeName=c.assignee?userById(c.assignee).name.split(' ')[0]:'—';
+    const missing=needsNextStep(c);
     return'<div class="c-card" data-id="'+esc(c.id)+'" onclick="openContactDetail(\''+jsAttr(c.id)+'\')">'
+      +(isOwner()?'<input type="checkbox" class="admin-only c-select" style="position:absolute;top:10px;left:10px;" onclick="event.stopPropagation();toggleCardSelect(this)">':'')
       +(c.dnc?'<div class="dnc-badge" style="position:absolute;top:10px;right:10px;">DNC</div>':'')
       +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
       +'<div class="av '+avatarColor(i)+'">'+personInitials(c.first,c.last)+'</div>'
@@ -2550,9 +3254,11 @@ function renderContacts(){
       +'<span class="tag '+stageTagClass(stage)+'">'+esc(stage)+'</span>'
       +entities.map(e=>'<span class="tag '+(e==='DKL'?'tag-dkl':e==='Refuge'?'tag-refuge':'tag-tpw')+'">'+esc(e)+'</span>').join('')
       +(coCount?'<span class="tag" style="background:#f0f0ee;color:#666;">🔗 '+coCount+' co-investor'+(coCount>1?'s':'')+'</span>':'')
+      +(missing?'<span class="tag tag-next">No next step</span>':'')
       +'</div>'
       +'<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink-light);">'
       +'<span>'+esc(assigneeName)+'</span>'
+      +(isOwner()?'<span>Owner: '+esc(authUserName(c.owner_id))+'</span>':'')
       +(totalAmt?'<span style="font-weight:700;color:var(--teal-dark);">'+fmt$(totalAmt)+'</span>':'')
       +'</div>'
       +'<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;">'
@@ -2573,7 +3279,7 @@ function openContactDetail(id){
 
 function renderContactDetail(id){
   const c=S.contacts.find(x=>x.id===id);if(!c)return;
-  document.getElementById('cd-title').textContent=c.first+' '+c.last+(c.dnc?' 🚫':'')+(c.company?' — '+c.company:'');
+  document.getElementById('cd-title').textContent=c.first+' '+c.last+(c.dnc?' 🚫':'')+(needsNextStep(c)?' · No next step':'')+(c.company?' — '+c.company:'');
   const invs=S.investments.filter(x=>x.contactId===id&&!x.isProspectPlaceholder);
   const allInvs=S.investments.filter(x=>x.contactId===id);
   const acts=S.activities.filter(x=>x.contactId===id);
@@ -2589,6 +3295,14 @@ function renderContactDetail(id){
     const assigneeField=isOwner()
       ?'<select id="cde-assignee">'+USERS.filter(u=>u.role!=='admin').map(u=>'<option value="'+esc(u.id)+'"'+(c.assignee===u.id?' selected':'')+'>'+esc(u.name)+'</option>').join('')+'</select>'
       :'<div style="font-size:13px;padding:6px 0;">'+esc(currentUser().name)+'</div>';
+    const ownerKnown=(S.authUsers||[]).some(u=>u.id===c.owner_id);
+    const ownerField=isOwner()
+      ?'<div class="fg admin-only"><label>Owner</label><select id="cde-owner" onchange="setContactOwner(\''+jsAttr(c.id)+'\', this.value)">'
+        +'<option value="" disabled'+(c.owner_id?'':' selected')+'>Choose an owner</option>'
+        +(c.owner_id&&!ownerKnown?'<option value="'+esc(c.owner_id)+'" selected>'+esc(authUserName(c.owner_id))+'</option>':'')
+        +(S.authUsers||[]).map(u=>'<option value="'+esc(u.id)+'"'+(c.owner_id===u.id?' selected':'')+'>'+esc(authUserLabel(u))+'</option>').join('')
+        +'</select><div style="font-size:11px;color:var(--ink-light);margin-top:3px;">Controls who can see this investor. '+(c.owner_id?'':'No owner yet, so only admins can see them.')+'</div></div>'
+      :'';
     document.getElementById('cd-overview').innerHTML='<div class="g2">'
     +'<div>'
     +'<div class="detail-sec"><h4>Contact Info</h4>'
@@ -2606,6 +3320,7 @@ function renderContactDetail(id){
     +'<div class="detail-sec"><h4>Classification</h4>'
     +'<div class="fg-row"><div class="fg"><label>Fundraiser</label>'+assigneeField+'</div>'
     +'<div class="fg"><label>Entity Type</label><select id="cde-entityType"><option value="">Select...</option>'+['Individual','Trust','LLC','Corporation','IRA','401k','DAF','Other'].map(e=>'<option'+(c.entityType===e?' selected':'')+'>'+e+'</option>').join('')+'</select></div></div>'
+    +ownerField
     +'<div class="fg-row"><div class="fg"><label>Lead Source</label><select id="cde-leadSource"><option value="">Select...</option>'+['Referral','Networking Event','Cold Outreach','Existing Investor','Social Media','Website','Other'].map(s=>'<option'+(c.leadSource===s?' selected':'')+'>'+s+'</option>').join('')+'</select></div>'
     +'<div class="fg"><label>Referred By</label><input id="cde-referredBy" value="'+esc(c.referredBy||'')+'"></div></div>'
     +'<div class="fg-row"><div class="fg"><label>Warmth (1-5)</label><select id="cde-warmth">'+[1,2,3,4,5].map(n=>'<option value="'+n+'"'+(c.warmth===n?' selected':'')+'>'+n+'</option>').join('')+'</select></div>'
@@ -2656,9 +3371,9 @@ function renderContactDetail(id){
       +'<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--orange-lt);border:1px solid #f0a87a;border-radius:var(--r);">'
       +'<span style="font-size:12px;font-weight:600;color:var(--orange-dk);white-space:nowrap;">✉️ Send Template:</span>'
       +'<select id="cd-tmpl-select" style="flex:1;font-size:12px;padding:5px 8px;border-radius:var(--r);border:1px solid var(--rule2);"><option value="">Choose a template…</option>'+tmplOptions+'</select>'
-      +'<button class="btn btn-xs btn-orange" onclick="(function(){const sel=document.getElementById(\'cd-tmpl-select\').value;if(!sel){showToast(\'Please choose a template first\');return;}openInGmail(sel,\''+safeId+'\');})()">Open in Gmail →</button>'
+      +'<button class="btn btn-xs btn-orange" onclick="openSendEmail({contactId:\''+safeId+'\',templateId:(document.getElementById(\'cd-tmpl-select\')||{}).value||\'\'})">Send</button>'
       +'</div></div>'
-      +(acts.length?acts.map(a=>{const u=userById(a.user);const icons={call:'📞',email:'✉️',meeting:'🤝',note:'📝'};const safeType=['call','email','meeting','note'].includes(a.type)?a.type:'note';return'<div class="activity-item"><div class="act-icon act-'+safeType+'">'+(icons[a.type]||'📌')+'</div><div class="act-body"><div class="act-desc">'+esc(a.notes)+'</div><div class="act-meta">'+esc(u.name)+' · '+esc(fmtDate(a.date))+'</div></div></div>';}).join(''):'<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No activity yet</div></div>');
+      +(acts.length?acts.map(a=>{const u=userById(a.user);const icons={call:'📞',email:'✉️',meeting:'🤝',note:'📝'};const safeType=['call','email','meeting','note'].includes(a.type)?a.type:'note';const status=a.gmailStatus==='sent'?' · sent':(a.gmailStatus==='opened'?' · opened in Gmail':'');const desc=(a.type==='email'&&(a.subject||a.snippet))?('<div class="act-desc">'+esc(a.subject||'Email')+'</div>'+(a.snippet?'<div style="font-size:12px;color:var(--ink-mid);margin-top:2px;">'+esc(a.snippet)+'</div>':'')):('<div class="act-desc">'+esc(a.notes)+'</div>');return'<div class="activity-item"><div class="act-icon act-'+safeType+'">'+(icons[a.type]||'📌')+'</div><div class="act-body">'+desc+'<div class="act-meta">'+esc(u.name)+' · '+esc(fmtDate(a.date))+esc(status)+'</div></div></div>';}).join(''):'<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No activity yet</div></div>');
   } else if(ap.id==='cd-tab-compliance'){
     document.getElementById('cd-compliance').innerHTML='<div class="detail-sec"><h4>Compliance Status</h4><div class="dr"><span>Accredited?</span><span><span class="comp-badge '+(c.accredited==='yes'?'comp-ok':c.accredited==='pending'?'comp-warn':'comp-bad')+'">'+(c.accredited==='yes'?'✓ Verified':c.accredited==='pending'?'⏳ Pending':'✗ No')+'</span></span></div><div class="dr"><span>Accred. Expiry</span><span>'+(c.accredExpiry?esc(fmtDate(c.accredExpiry)):'—')+'</span></div><div class="dr"><span>KYC/AML</span><span><span class="comp-badge '+(c.kyc==='yes'?'comp-ok':c.kyc==='pending'?'comp-warn':'comp-bad')+'">'+(c.kyc==='yes'?'✓ Complete':c.kyc==='pending'?'⏳ Pending':'✗ Incomplete')+'</span></span></div><div class="dr"><span>DNC</span><span>'+(c.dnc?'<span class="dnc-badge">DNC</span>':'Clear')+'</span></div></div>'+invs.map(inv=>'<div style="border:1px solid var(--rule);border-radius:var(--r);padding:10px;margin-bottom:8px;"><div style="font-weight:600;margin-bottom:6px;">'+esc(inv.offering)+' — '+esc(inv.entity)+'</div><div class="dr"><span>Type</span><span>'+esc(inv.offering506||'—')+'</span></div><div class="dr"><span>PPM</span><span>'+esc(inv.ppmVersion||'—')+'</span></div><div class="dr"><span>Subscription</span><span><span class="comp-badge '+(inv.subStatus==='countersigned'||inv.subStatus==='signed'?'comp-ok':inv.subStatus==='sent'?'comp-warn':'comp-bad')+'">'+esc(inv.subStatus||'Unsent')+'</span></span></div></div>').join('');
   } else if(ap.id==='cd-tab-tasks'){
@@ -2673,12 +3388,14 @@ function renderPipeline(){
   const offeringF=(document.getElementById('pipe-offering')&&document.getElementById('pipe-offering').value)||'';
   const entityF=(document.getElementById('pipe-entity')&&document.getElementById('pipe-entity').value)||'';
   const fundraiserF=(document.getElementById('pipe-fundraiser')&&document.getElementById('pipe-fundraiser').value)||'';
+  const nextF=(document.getElementById('pipe-next')&&document.getElementById('pipe-next').value)||'';
   const pfd=document.getElementById('pipe-fundraiser');
   if(pfd&&pfd.options.length<=1){USERS.filter(u=>u.role!=='admin').forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.name;pfd.appendChild(o);});}
   let invs=visibleInvestments().filter(i=>STAGES.includes(i.stage));
   if(offeringF&&offeringF!=='Prospect')invs=invs.filter(i=>i.offering===offeringF||i.isProspectPlaceholder);
   if(entityF)invs=invs.filter(i=>i.entity===entityF||i.isProspectPlaceholder);
   if(fundraiserF)invs=invs.filter(i=>{const c=S.contacts.find(x=>x.id===i.contactId);return c&&c.assignee===fundraiserF;});
+  if(nextF==='missing')invs=invs.filter(i=>{const c=S.contacts.find(x=>x.id===i.contactId);return c&&needsNextStep(c);});
   const realTotal=invs.filter(i=>!i.isProspectPlaceholder).reduce((s,i)=>s+(i.amount||0),0);
   document.getElementById('pipe-summary').textContent=invs.length+' records · Pipeline value: '+fmt$(realTotal);
   const hot=S.settings.radarHot||14;const warm=S.settings.radarWarm||7;
@@ -2696,6 +3413,7 @@ function renderPipeline(){
         const isProsp=inv.isProspectPlaceholder;
         return'<div class="pipe-item" draggable="true" data-inv-id="'+esc(inv.id)+'" ondragstart="pipeDragStart(event,\''+jsAttr(inv.id)+'\')" onclick="openContactDetail(\''+jsAttr(inv.contactId)+'\')">'
           +'<div class="pipe-item-name">'+(c?esc(c.first)+' '+esc(c.last):'Unknown')+'</div>'
+          +(c&&needsNextStep(c)?'<div style="margin-bottom:4px;"><span class="tag tag-next">No next step</span></div>':'')
           +(c&&c.company?'<div style="font-size:10px;color:var(--teal-accent);margin-bottom:2px;">🏢 '+esc(c.company)+'</div>':'')
           +(isProsp?'<div class="pipe-item-offering" style="color:var(--ink-light);font-style:italic;">No offering yet</div>':'<div class="pipe-item-offering" style="color:'+off.color+';">'+esc(inv.offering)+' · '+esc(inv.entity)+'</div>')
           +(isProsp?'<div style="font-size:11px;color:var(--ink-light);">Prospect — add investment to track offering</div>':'<div class="pipe-item-amount">'+fmt$(inv.amount)+'</div>')
@@ -2729,6 +3447,7 @@ function pipeDrop(e,stage){
   const c=S.contacts.find(x=>x.id===inv.contactId);if(c){c.lastContact=today();touch('contacts',c.id);}
   autoCreateFollowupTask(inv.contactId,stage,inv.id);
   saveState();renderPipeline();renderDashboard();_dragInvId=null;showToast('Moved to '+stage);
+  maybePromptNextStep(inv.contactId);
 }
 
 // ── INVESTMENTS TABLE ─────────────────────────────────────────
@@ -2817,7 +3536,7 @@ function renderRadar(){
 function renderTemplates(){
   const stageF=(document.getElementById('tmpl-stage-filter')&&document.getElementById('tmpl-stage-filter').value)||'';
   const list=S.templates.filter(t=>!stageF||t.stage===stageF);
-  document.getElementById('templates-list').innerHTML=list.length?list.map(t=>{const body=String(t.body||'');const actions='<button class="btn btn-xs btn-orange" onclick="openInGmail(\''+jsAttr(t.id)+'\',null)">✉️ Open in Gmail</button><button class="btn btn-xs" onclick="copyTemplate(\''+jsAttr(t.id)+'\',null)">📋 Copy</button>'+(isOwner()?'<button class="btn btn-xs btn-primary" onclick="editTemplate(\''+jsAttr(t.id)+'\')">Edit</button><button class="btn btn-xs btn-danger" onclick="deleteTemplate(\''+jsAttr(t.id)+'\')">Delete</button>':'');return'<div class="tmpl-card"><div class="tmpl-hdr"><div><div class="tmpl-name">'+esc(t.name)+'</div><div class="tmpl-stage">'+esc(t.stage)+' · '+esc(t.role)+'</div>'+(t.subject?'<div style="font-size:11px;color:var(--ink-light);margin-top:2px;">Subject: '+esc(t.subject)+'</div>':'')+'</div><div style="display:flex;gap:6px;flex-wrap:wrap;">'+actions+'</div></div><div class="tmpl-body">'+esc(body.substring(0,300)+(body.length>300?'…':''))+'</div></div>';}).join(''):'<div class="empty"><div class="empty-icon">✉️</div><div class="empty-title">No templates found</div></div>';
+  document.getElementById('templates-list').innerHTML=list.length?list.map(t=>{const body=String(t.body||'');const actions='<button class="btn btn-xs btn-orange" onclick="openSendEmail({templateId:\''+jsAttr(t.id)+'\'})">✉️ Send</button><button class="btn btn-xs" onclick="copyTemplate(\''+jsAttr(t.id)+'\',null)">📋 Copy</button>'+(isOwner()?'<button class="btn btn-xs btn-primary" onclick="editTemplate(\''+jsAttr(t.id)+'\')">Edit</button><button class="btn btn-xs btn-danger" onclick="deleteTemplate(\''+jsAttr(t.id)+'\')">Delete</button>':'');return'<div class="tmpl-card"><div class="tmpl-hdr"><div><div class="tmpl-name">'+esc(t.name)+'</div><div class="tmpl-stage">'+esc(t.stage)+' · '+esc(t.role)+'</div>'+(t.subject?'<div style="font-size:11px;color:var(--ink-light);margin-top:2px;">Subject: '+esc(t.subject)+'</div>':'')+'</div><div style="display:flex;gap:6px;flex-wrap:wrap;">'+actions+'</div></div><div class="tmpl-body">'+esc(body.substring(0,300)+(body.length>300?'…':''))+'</div></div>';}).join(''):'<div class="empty"><div class="empty-icon">✉️</div><div class="empty-title">No templates found</div></div>';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2878,9 +3597,13 @@ function renderSettings(){
   document.getElementById('radar-hot').value=S.settings.radarHot||14;
   document.getElementById('radar-warm').value=S.settings.radarWarm||7;
   document.getElementById('stall-days').value=S.settings.stallDays||14;
+  const qd=document.getElementById('quiet-days');if(qd)qd.value=quietDays();
+  const gc=document.getElementById('google-client-id');if(gc)gc.value=S.settings.googleClientId||'';
 }
 function saveRadarSettings(){if(!isOwner()){showToast('Only admins can change settings',{error:true});return;}S.settings.radarHot=parseInt(document.getElementById('radar-hot').value)||14;S.settings.radarWarm=parseInt(document.getElementById('radar-warm').value)||7;touchSettings('settings');saveState();showToast('Radar settings saved');}
 function saveStallSettings(){if(!isOwner()){showToast('Only admins can change settings',{error:true});return;}S.settings.stallDays=parseInt(document.getElementById('stall-days').value)||14;touchSettings('settings');saveState();showToast('Stall settings saved');}
+function saveQuietSettings(){if(!isOwner()){showToast('Only admins can change settings',{error:true});return;}const n=parseInt(document.getElementById('quiet-days').value,10);S.settings.quietDays=(n>=1&&n<=3650)?n:30;touchSettings('settings');saveState();renderFollowups();showToast('Gone-quiet setting saved');}
+function saveGoogleSettings(){if(!isOwner()){showToast('Only admins can change settings',{error:true});return;}S.settings.googleClientId=String(document.getElementById('google-client-id').value||'').trim();touchSettings('settings');saveState();showToast('Gmail client ID saved');}
 
 // ── USER SWITCHER ─────────────────────────────────────────────
 function renderUserSwitcher(){}
@@ -2925,8 +3648,47 @@ function exportCSV(){
   const csv=[h.join(','),...rows].join('\n');const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='refuge_crm_investors.csv';a.click();
 }
 function exportJSON(){if(!isOwner()){showToast('Only admins can download a full backup',{error:true});return;}const a=document.createElement('a');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify({contacts:S.contacts,investments:S.investments,activities:S.activities,tasks:S.tasks,templates:S.templates,goals:S.goals,settings:S.settings},null,2));a.download='refuge_crm_backup.json';a.click();}
-function bulkAssign(){if(!isOwner()){showToast('Only admins can reassign investors',{error:true});return;}const assignee=document.getElementById('bulk-assign').value;if(!assignee)return;document.querySelectorAll('.c-card.selected').forEach(el=>{const id=el.getAttribute('data-id');const c=S.contacts.find(x=>x.id===id);if(c){c.assignee=assignee;touch('contacts',c.id);}});saveState();renderContacts();showToast('Assigned');}
-function clearBulk(){document.querySelectorAll('.c-card.selected').forEach(el=>el.classList.remove('selected'));document.getElementById('bulk-bar').style.display='none';}
+function bulkAssign(){if(!isOwner()){showToast('Only admins can reassign investors',{error:true});return;}const assignee=document.getElementById('bulk-assign').value;if(!assignee)return;document.querySelectorAll('.c-card.selected').forEach(el=>{const id=el.getAttribute('data-id');const c=S.contacts.find(x=>x.id===id);if(c){c.assignee=assignee;touch('contacts',c.id);}});saveState();renderContacts();showToast('Fundraiser updated');}
+function toggleCardSelect(box){const card=box.closest('.c-card');if(card)card.classList.toggle('selected',box.checked);const n=document.querySelectorAll('.c-card.selected').length;const bar=document.getElementById('bulk-bar');if(bar)bar.style.display=n?'flex':'none';const count=document.getElementById('bulk-count');if(count)count.textContent=n+' selected';}
+function clearBulk(){document.querySelectorAll('.c-card.selected').forEach(el=>el.classList.remove('selected'));document.querySelectorAll('.c-select').forEach(el=>{el.checked=false;});const bar=document.getElementById('bulk-bar');if(bar)bar.style.display='none';}
+async function setContactOwner(contactId,ownerId,quiet){
+  if(S.isAdmin!==true){if(!quiet)showToast('Only admins can assign an owner',{error:true});return false;}
+  if(!contactId||!ownerId){
+    if(S._viewingContact===contactId)renderContactDetail(contactId);
+    return false;
+  }
+  const c=S.contacts.find(x=>x.id===contactId);
+  if(c&&c.owner_id===ownerId)return true;
+  try{
+    const res=await apiFetch(REST+'/rpc/set_contact_owner',{method:'POST',body:JSON.stringify({contact_id:contactId,new_owner:ownerId})});
+    if(!res.ok){
+      const text=await res.text();
+      if(!quiet)showToast('Owner not saved: '+errorText(text,res.status),{error:true});
+      if(S._viewingContact===contactId)renderContactDetail(contactId);
+      return false;
+    }
+    if(c)c.owner_id=ownerId;
+    ['investments','activities','tasks'].forEach(table=>{(S[table]||[]).forEach(row=>{if(row&&row.contactId===contactId)row.owner_id=ownerId;});});
+    renderContacts();
+    if(S._viewingContact===contactId)renderContactDetail(contactId);
+    if(!quiet)showToast('Owner updated');
+    return true;
+  }catch(e){
+    if(!quiet&&!isSessionMessage(e&&e.message))showToast('Owner not saved: '+(e.message||e),{error:true});
+    return false;
+  }
+}
+async function bulkSetOwner(){
+  if(S.isAdmin!==true){showToast('Only admins can assign an owner',{error:true});return;}
+  const ownerId=document.getElementById('bulk-owner').value;
+  if(!ownerId){showToast('Choose an owner',{error:true});return;}
+  const ids=[...document.querySelectorAll('.c-card.selected')].map(el=>el.getAttribute('data-id')).filter(Boolean);
+  if(!ids.length){showToast('Select investors first',{error:true});return;}
+  let ok=0,bad=0;
+  for(const id of ids){if(await setContactOwner(id,ownerId,true))ok++;else bad++;}
+  clearBulk();
+  showToast(bad?('Owner updated on '+ok+', '+bad+' failed'):('Owner updated on '+ok),bad?{error:true}:undefined);
+}
 
 // ── TOAST ─────────────────────────────────────────────────────
 let _toastTimer;
@@ -2942,8 +3704,8 @@ async function init(){
     // Try to restore existing session
     const restored=await tryRestoreSession();
     if(!restored){
-      // Show login screen
-      return; // login screen is already visible by default
+      if(pendingSnapshotExists())showSessionBanner('Not saved, sign in again');
+      return;
     }
   }
   await onLoginSuccess();

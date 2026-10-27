@@ -1,0 +1,8 @@
+# Partial Supabase config for the digest function only.
+# Link the project with `supabase link --project-ref uivltttwigqejmqqfxuj`.
+# verify_jwt is off because pg_cron authenticates with DIGEST_CRON_SECRET,
+# not a user JWT. The function rejects requests that lack that secret or
+# the service-role key.
+
+[functions.daily-digest]
+verify_jwt = false
